@@ -191,9 +191,9 @@ bool YulStack::analyzeParsed(Object& _object)
 	return success;
 }
 
-void YulStack::compileEVM(AbstractAssembly& _assembly, bool _optimize) const
+void YulStack::compileEVM(AbstractAssembly& _assembly, bool _optimize, bool _ssaCfg) const
 {
-	EVMObjectCompiler::compile(*m_parserResult, _assembly, _optimize);
+	EVMObjectCompiler::compile(*m_parserResult, _assembly, _optimize, _ssaCfg);
 }
 
 void YulStack::reparse()
@@ -322,7 +322,7 @@ YulStack::assembleEVMWithDeployed(std::optional<std::string_view> _deployName)
 	);
 	try
 	{
-		compileEVM(adapter, optimize);
+		compileEVM(adapter, optimize, m_optimiserSettings.runSSAYul);
 
 		assembly.optimise(evmasm::Assembly::OptimiserSettings::translateSettings(m_optimiserSettings));
 

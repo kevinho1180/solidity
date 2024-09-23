@@ -99,7 +99,7 @@ void EVMObjectCompiler::run(Object const& _object, bool _optimize, bool _ssaCfg)
 				m_assembly,
 				*_object.analysisInfo,
 				_object.code()->root(),
-				_object.dialect(),
+				*evmDialect,
 				context,
 				SSAEVMCodeTransform::UseNamedLabels::ForFirstFunctionOfEachName
 			);

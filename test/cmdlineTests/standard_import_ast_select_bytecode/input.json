@@ -45,6 +45,9 @@
           "evm.bytecode.sourceMap"
         ]
       }
+    },
+    "metadata": {
+      "appendCBOR": false
     }
   }
 }

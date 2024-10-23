@@ -67,6 +67,8 @@ public:
 		std::map<std::string, evmasm::LinkerObject::FunctionDebugData> const& _debugInfo
 	);
 
+	static Json formatAssemblyStructure(std::vector<evmasm::LinkerObject::Structure> const& _assemblyStructure);
+
 private:
 	struct InputsAndSettings
 	{

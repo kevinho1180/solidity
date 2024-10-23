@@ -7,6 +7,12 @@
   0x00
 ",
                     "bytecode": {
+                        "assemblyStructure": {
+                            "isCreation": true,
+                            "length": 1,
+                            "start": 0,
+                            "subAssemblies": []
+                        },
                         "functionDebugData": {},
                         "linkReferences": {},
                         "object": "<BYTECODE REMOVED>",

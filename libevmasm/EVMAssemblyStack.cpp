@@ -57,6 +57,13 @@ void EVMAssemblyStack::assemble()
 
 	m_evmAssembly->optimise(m_optimiserSettings);
 	m_object = m_evmAssembly->assemble();
+	// Recreate subAssembly data to include parent object
+	m_object.subAssemblyData = {{
+		0,
+		m_object.bytecode.size(),
+		m_evmAssembly->isCreation(),
+		m_object.subAssemblyData
+	}};
 	// TODO: Check for EOF
 	solAssert(m_evmAssembly->codeSections().size() == 1);
 	m_sourceMapping = AssemblyItem::computeSourceMapping(m_evmAssembly->codeSections().front().items, sourceIndices());

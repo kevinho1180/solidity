@@ -246,7 +246,7 @@ bool isArtifactRequested(Json const& _outputSelection, std::string const& _file,
 std::vector<std::string> evmObjectComponents(std::string const& _objectKind)
 {
 	solAssert(_objectKind == "bytecode" || _objectKind == "deployedBytecode", "");
-	std::vector<std::string> components{"", ".object", ".opcodes", ".sourceMap", ".functionDebugData", ".generatedSources", ".linkReferences", ".ethdebug"};
+	std::vector<std::string> components{"", ".object", ".opcodes", ".sourceMap", ".functionDebugData", ".generatedSources", ".linkReferences", ".ethdebug", ".assemblyStructure"};
 	if (_objectKind == "deployedBytecode")
 		components.push_back(".immutableReferences");
 	return util::applyMap(components, [&](auto const& _s) { return "evm." + _objectKind + _s; });
@@ -1304,6 +1304,8 @@ Json StandardCompiler::importEVMAssembly(StandardCompiler::InputsAndSettings _in
 			creationJSON["linkReferences"] = formatLinkReferences(stack.object(sourceName).linkReferences);
 		if (evmCreationArtifactRequested("ethdebug"))
 			creationJSON["ethdebug"] = stack.ethdebug(sourceName);
+		if (evmCreationArtifactRequested("assemblyStructure"))
+			creationJSON["assemblyStructure"] = formatAssemblyStructure(stack.object(sourceName).subAssemblyData);
 		evmData["bytecode"] = creationJSON;
 	}
 
@@ -1581,6 +1583,8 @@ Json StandardCompiler::compileSolidity(StandardCompiler::InputsAndSettings _inpu
 				creationJSON["generatedSources"] = compilerStack.generatedSources(contractName, /* _runtime */ false);
 			if (evmCreationArtifactRequested("ethdebug"))
 				creationJSON["ethdebug"] = compilerStack.ethdebug(contractName);
+			if (evmCreationArtifactRequested("assemblyStructure"))
+				creationJSON["assemblyStructure"] = formatAssemblyStructure(compilerStack.object(contractName).subAssemblyData);
 			evmData["bytecode"] = creationJSON;
 		}
 
@@ -1881,4 +1885,35 @@ Json StandardCompiler::formatFunctionDebugData(
 	}
 
 	return ret;
+}
+
+Json StandardCompiler::formatAssemblyStructure(std::vector<evmasm::LinkerObject::Structure> const& _assemblyStructure)
+{
+	std::function<Json(std::vector<evmasm::LinkerObject::Structure> const&)> recursiveHelper = [&](auto const& _assemblyStructure)
+	{
+		Json subAssemblies = Json::array();
+		for (auto const& subAssembly: _assemblyStructure)
+		{
+			Json assemblyStructure = {
+				{"start", Json::number_unsigned_t(subAssembly.start)},
+				{"length", Json::number_unsigned_t(subAssembly.length)},
+				{"isCreation", Json::boolean_t(subAssembly.isCreation)}
+			};
+			if (!subAssembly.subAssemblies.empty())
+				assemblyStructure["subAssemblies"] = recursiveHelper(subAssembly.subAssemblies);
+			subAssemblies.emplace_back(assemblyStructure);
+		}
+		return subAssemblies;
+	};
+
+	Json assemblyStructure = Json::object();
+	if (!_assemblyStructure.empty())
+		assemblyStructure = {
+			{"start", Json::number_unsigned_t(_assemblyStructure[0].start)},
+			{"length", Json::number_unsigned_t(_assemblyStructure[0].length)},
+			{"isCreation", Json::boolean_t(_assemblyStructure[0].isCreation)},
+			{"subAssemblies", recursiveHelper(_assemblyStructure[0].subAssemblies)}
+		};
+
+	return assemblyStructure;
 }

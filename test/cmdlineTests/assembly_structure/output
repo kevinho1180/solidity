@@ -1,0 +1,42 @@
+
+======= assembly_structure/input.sol:A =======
+Assembly structure:
+{
+    "isCreation": true,
+    "length": 34,
+    "start": 0,
+    "subAssemblies": [
+        {
+            "isCreation": false,
+            "length": 8,
+            "start": 26
+        }
+    ]
+}
+
+======= assembly_structure/input.sol:Storage =======
+Assembly structure:
+{
+    "isCreation": true,
+    "length": 1595,
+    "start": 0,
+    "subAssemblies": [
+        {
+            "isCreation": false,
+            "length": 684,
+            "start": 877
+        },
+        {
+            "isCreation": true,
+            "length": 34,
+            "start": 1561,
+            "subAssemblies": [
+                {
+                    "isCreation": false,
+                    "length": 8,
+                    "start": 26
+                }
+            ]
+        }
+    ]
+}

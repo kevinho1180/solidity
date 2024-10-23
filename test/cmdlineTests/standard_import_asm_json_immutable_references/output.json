@@ -4,6 +4,12 @@
             "": {
                 "evm": {
                     "bytecode": {
+                        "assemblyStructure": {
+                            "isCreation": true,
+                            "length": 5,
+                            "start": 0,
+                            "subAssemblies": []
+                        },
                         "functionDebugData": {},
                         "linkReferences": {},
                         "object": "<BYTECODE REMOVED>",

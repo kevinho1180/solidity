@@ -4,6 +4,18 @@
             "test": {
                 "evm": {
                     "bytecode": {
+                        "assemblyStructure": {
+                            "isCreation": true,
+                            "length": 34,
+                            "start": 0,
+                            "subAssemblies": [
+                                {
+                                    "isCreation": false,
+                                    "length": 8,
+                                    "start": 26
+                                }
+                            ]
+                        },
                         "functionDebugData": {},
                         "generatedSources": [],
                         "linkReferences": {},

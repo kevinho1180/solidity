@@ -264,7 +264,6 @@ protected:
 
 private:
 	bool m_invalid = false;
-
 	Assembly const* subAssemblyById(size_t _subId) const;
 
 	void encodeAllPossibleSubPathsInAssemblyTree(std::vector<size_t> _pathFromRoot = {}, std::vector<Assembly*> _assembliesOnPath = {});

@@ -106,6 +106,7 @@ set(libsolidity_sources
     libsolidity/SolidityParser.cpp
     libsolidity/SolidityTypes.cpp
     libsolidity/StandardCompiler.cpp
+    libsolidity/SubAssemblyOffsetsTest.cpp
     libsolidity/SyntaxTest.cpp
     libsolidity/SyntaxTest.h
     libsolidity/ViewPureChecker.cpp

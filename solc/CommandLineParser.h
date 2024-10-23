@@ -90,6 +90,7 @@ struct CompilerOutputs
 			{"yul-cfg-json", &CompilerOutputs::yulCFGJson},
 			{"ethdebug", &CompilerOutputs::ethdebug},
 			{"ethdebug-runtime", &CompilerOutputs::ethdebugRuntime},
+			{"assembly-structure", &CompilerOutputs::assemblyStructure},
 		};
 		return components;
 	}
@@ -114,6 +115,7 @@ struct CompilerOutputs
 	bool transientStorageLayout = false;
 	bool ethdebug = false;
 	bool ethdebugRuntime = false;
+	bool assemblyStructure = false;
 };
 
 struct CombinedJsonRequests
@@ -144,6 +146,7 @@ struct CombinedJsonRequests
 			{"devdoc", &CombinedJsonRequests::natspecDev},
 			{"userdoc", &CombinedJsonRequests::natspecUser},
 			{"ast", &CombinedJsonRequests::ast},
+			{"assembly-structure", &CombinedJsonRequests::assemblyStructure},
 		};
 		return components;
 	}
@@ -166,6 +169,7 @@ struct CombinedJsonRequests
 	bool natspecDev = false;
 	bool natspecUser = false;
 	bool ast = false;
+	bool assemblyStructure = false;
 };
 
 struct CommandLineOptions

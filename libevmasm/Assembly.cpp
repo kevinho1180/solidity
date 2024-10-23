@@ -1210,12 +1210,11 @@ LinkerObject const& Assembly::assembleLegacy() const
 	solAssert(m_assembledObject.linkReferences.empty());
 
 	LinkerObject& ret = m_assembledObject;
-
 	size_t subTagSize = 1;
 	std::map<u256, LinkerObject::ImmutableRefs> immutableReferencesBySub;
 	for (auto const& sub: m_subs)
 	{
-		auto const& linkerObject = sub->assemble();
+		auto const& linkerObject = sub->assembleLegacy();
 		if (!linkerObject.immutableReferences.empty())
 		{
 			assertThrow(
@@ -1269,7 +1268,7 @@ LinkerObject const& Assembly::assembleLegacy() const
 
 	unsigned bytesRequiredIncludingData = bytesRequiredForCode + 1 + static_cast<unsigned>(m_auxiliaryData.size());
 	for (auto const& sub: m_subs)
-		bytesRequiredIncludingData += static_cast<unsigned>(sub->assemble().bytecode.size());
+		bytesRequiredIncludingData += static_cast<unsigned>(sub->assembleLegacy().bytecode.size());
 
 	unsigned bytesPerDataRef = numberEncodingSize(bytesRequiredIncludingData);
 	ret.bytecode.reserve(bytesRequiredIncludingData);
@@ -1460,7 +1459,7 @@ LinkerObject const& Assembly::assembleLegacy() const
 	std::map<LinkerObject, size_t> subAssemblyOffsets;
 	for (auto const& [subIdPath, bytecodeOffset]: subRefs)
 	{
-		LinkerObject subObject = subAssemblyById(subIdPath)->assemble();
+		LinkerObject subObject = subAssemblyById(subIdPath)->assembleLegacy();
 		bytesRef r(ret.bytecode.data() + bytecodeOffset, bytesPerDataRef);
 
 		// In order for de-duplication to kick in, not only must the bytecode be identical, but
@@ -1472,6 +1471,12 @@ LinkerObject const& Assembly::assembleLegacy() const
 			toBigEndian(ret.bytecode.size(), r);
 			subAssemblyOffsets[subObject] = ret.bytecode.size();
 			ret.bytecode += subObject.bytecode;
+			ret.subAssemblyData.push_back({
+				subAssemblyOffsets[subObject],
+				subObject.bytecode.size(),
+				subAssemblyById(subIdPath)->isCreation(),
+				subObject.subAssemblyData
+			});
 		}
 		for (auto const& ref: subObject.linkReferences)
 			ret.linkReferences[ref.first + subAssemblyOffsets[subObject]] = ref.second;

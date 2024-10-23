@@ -11,6 +11,7 @@
                 "evm": {
                     "assembly": "",
                     "bytecode": {
+                        "assemblyStructure": {},
                         "functionDebugData": {},
                         "generatedSources": [],
                         "linkReferences": {},
@@ -60,6 +61,7 @@
                 "evm": {
                     "assembly": "",
                     "bytecode": {
+                        "assemblyStructure": {},
                         "functionDebugData": {},
                         "generatedSources": [],
                         "linkReferences": {},

@@ -1470,6 +1470,13 @@ void CompilerStack::assembleYul(
 	{
 		// Assemble deployment (incl. runtime)  object.
 		compiledContract.object = compiledContract.evmAssembly->assemble();
+		// Recreate subAssembly data to include parent object
+		compiledContract.object.subAssemblyData = {{
+			0,
+			compiledContract.object.bytecode.size(),
+			compiledContract.evmAssembly->isCreation(),
+			compiledContract.object.subAssemblyData
+		}};
 	}
 	catch (evmasm::AssemblyException const& error)
 	{

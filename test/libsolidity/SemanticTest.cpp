@@ -332,7 +332,7 @@ TestCase::TestResult SemanticTest::run(std::ostream& _stream, std::string const&
 		else
 			result = tryRunTestWithYulOptimizer(_stream, _linePrefix, _formatted);
 
-
+		std::string contractName = m_compiler.lastContractName(std::nullopt);
 		struct TestTraceOutputter
 		{
 			~TestTraceOutputter()
@@ -347,6 +347,7 @@ TestCase::TestResult SemanticTest::run(std::ostream& _stream, std::string const&
 		bool skipCase = false;
 		bytes bytecode = multiSourceCompileContract(m_sources.sources, std::nullopt, "", {});
 		filedata["bytecode"] = util::toHex(bytecode);
+		filedata["contract"] = contractName;
 		nlohmann::json testsdata;
 		if (m_tests.front().call().kind != FunctionCall::Kind::Constructor)
 		{

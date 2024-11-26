@@ -54,3 +54,50 @@ add_executable(isoltest
 )
 target_compile_definitions(isoltest PRIVATE ISOLTEST)
 target_link_libraries(isoltest PRIVATE evmc libsolc solidity yulInterpreter evmasm Boost::boost Boost::program_options Boost::unit_test_framework Threads::Threads)
+
+add_executable(testrunner
+		testrunner.cpp
+		../Common.cpp
+		../CommonSyntaxTest.cpp
+		../EVMHost.cpp
+		../TestCase.cpp
+		../TestCaseReader.cpp
+		../libsolidity/util/BytesUtils.cpp
+		../libsolidity/util/Common.cpp
+		../libsolidity/util/ContractABIUtils.cpp
+		../libsolidity/util/TestFileParser.cpp
+		../libsolidity/util/TestFunctionCall.cpp
+		../libsolidity/GasTest.cpp
+		../libsolidity/MemoryGuardTest.cpp
+		../libsolidity/NatspecJSONTest.cpp
+		../libsolidity/OptimizedIRCachingTest.cpp
+		../libsolidity/OptimizedIRCachingTest.h
+		../libsolidity/SyntaxTest.cpp
+		../libsolidity/SemanticTest.cpp
+		../libsolidity/AnalysisFramework.cpp
+		../libsolidity/SolidityExecutionFramework.cpp
+		../ExecutionFramework.cpp
+		../libsolidity/ABIJsonTest.cpp
+		../libsolidity/ASTJSONTest.cpp
+		../libsolidity/ASTPropertyTest.cpp
+		../libsolidity/FunctionDependencyGraphTest.cpp
+		../libsolidity/SMTCheckerTest.cpp
+		../libyul/Common.cpp
+		../libyul/ControlFlowGraphTest.cpp
+		../libyul/SSAControlFlowGraphTest.cpp
+		../libyul/ControlFlowSideEffectsTest.cpp
+		../libyul/EVMCodeTransformTest.cpp
+		../libyul/FunctionSideEffects.cpp
+		../libyul/ObjectCompilerTest.cpp
+		../libyul/SyntaxTest.cpp
+		../libyul/StackShufflingTest.cpp
+		../libyul/StackLayoutGeneratorTest.cpp
+		../libyul/YulOptimizerTest.cpp
+		../libyul/YulOptimizerTestCommon.cpp
+		../libyul/YulInterpreterTest.cpp
+)
+target_link_libraries(testrunner PRIVATE evmc libsolc solidity yulInterpreter evmasm Boost::boost Boost::program_options Boost::unit_test_framework Threads::Threads)
+set_target_properties(
+		testrunner PROPERTIES
+		LINK_FLAGS "-static-libgcc -static-libstdc++"
+)

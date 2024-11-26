@@ -125,6 +125,7 @@ private:
 	bool m_enforceGasCost = false;
 	RequiresYulOptimizer m_requiresYulOptimizer{};
 	u256 m_enforceGasCostMinValue;
+	std::string m_filename;
 };
 
 }

@@ -71,7 +71,8 @@ SemanticTest::SemanticTest(
 	m_builtins(makeBuiltins()),
 	m_sideEffectHooks(makeSideEffectHooks()),
 	m_enforceGasCost(_enforceGasCost),
-	m_enforceGasCostMinValue(std::move(_enforceGasCostMinValue))
+	m_enforceGasCostMinValue(std::move(_enforceGasCostMinValue)),
+	m_filename(_filename)
 {
 	static std::set<std::string> const compileViaYulAllowedValues{"also", "true", "false"};
 	static std::set<std::string> const yulRunTriggers{"also", "true"};
@@ -330,6 +331,91 @@ TestCase::TestResult SemanticTest::run(std::ostream& _stream, std::string const&
 			result = runTest(_stream, _linePrefix, _formatted, true /* _isYulRun */);
 		else
 			result = tryRunTestWithYulOptimizer(_stream, _linePrefix, _formatted);
+
+
+		struct TestTraceOutputter
+		{
+			~TestTraceOutputter()
+			{
+				std::ofstream f("/tmp/testtrace");
+				f << data << std::endl;
+			}
+			nlohmann::json data;
+		};
+		static TestTraceOutputter output;
+		nlohmann::json filedata;
+		bool skipCase = false;
+		bytes bytecode = multiSourceCompileContract(m_sources.sources, std::nullopt, "", {});
+		filedata["bytecode"] = util::toHex(bytecode);
+		nlohmann::json testsdata;
+		if (m_tests.front().call().kind != FunctionCall::Kind::Constructor)
+		{
+			nlohmann::json testdata;
+			testdata["kind"] = "constructor";
+			nlohmann::json input;
+			input["value"] = "0";
+			input["calldata"] = "";
+			testdata["input"] = input;
+			testsdata.push_back(testdata);
+		}
+		for (auto& test: m_tests)
+		{
+			nlohmann::json testdata;
+			switch(test.call().kind)
+			{
+			case FunctionCall::Kind::Regular:
+			{
+				testdata["kind"] = "call";
+				nlohmann::json input;
+				input["calldata"] = util::toHex(util::selectorFromSignatureH32(test.call().signature).asBytes() + test.call().arguments.rawBytes());
+				input["value"] = test.call().value.value.str();
+				testdata["input"] = input;
+				nlohmann::json output;
+				output["returndata"] = util::toHex(test.call().expectations.rawBytes());
+				output["status"] = test.call().expectations.failure ? "failure" : "success";
+				testdata["output"] = output;
+				break;
+			}
+			case FunctionCall::Kind::Constructor:
+			{
+				testdata["kind"] = "constructor";
+				nlohmann::json input;
+				input["calldata"] = util::toHex(test.call().arguments.rawBytes());
+				input["value"] = test.call().value.value.str();
+				testdata["input"] = input;
+				break;
+			}
+			case FunctionCall::Kind::LowLevel:
+			{
+				testdata["kind"] = "call";
+				nlohmann::json input;
+				input["calldata"] = util::toHex(test.call().arguments.rawBytes());
+				input["value"] = test.call().value.value.str();
+				testdata["input"] = input;
+				nlohmann::json output;
+				output["returndata"] = util::toHex(test.call().expectations.rawBytes());
+				output["status"] = test.call().expectations.failure ? "failure" : "success";
+				testdata["output"] = output;
+				break;
+			}
+			case FunctionCall::Kind::Library:
+				skipCase = true; // Skip all cases involving libraries for now.
+				break;
+			case FunctionCall::Kind::Builtin:
+				skipCase = true; // Skip all cases involving builtins for now.
+				break;
+			}
+			if (!skipCase)
+				testsdata.push_back(testdata);
+		}
+		filedata["tests"] = testsdata;
+		if (!skipCase)
+		{
+			std::string strippedFilename = m_filename.substr(m_filename.find("semanticTests"));
+			output.data[strippedFilename] = filedata;
+		}
+
+
 	}
 
 	if (result != TestResult::Success)

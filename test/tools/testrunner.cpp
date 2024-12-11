@@ -1,17 +1,56 @@
+#include <test/EVMHost.h>
 #include <nlohmann/json.hpp>
+#include <fmt/format.h>
 #include <iostream>
 #include <fstream>
-#include <test/EVMHost.h>
 
 using namespace solidity;
 using namespace test;
 using namespace util;
 
+struct ResultRecorder
+{
+	explicit ResultRecorder(std::optional<std::string> const& _outfile): m_outfile(_outfile)
+	{
+	}
+
+	~ResultRecorder()
+	{
+		if (m_outfile)
+		{
+			nlohmann::json const j = m_outputContents;
+			std::ofstream outputStream {m_outfile.value()};
+			outputStream << j;
+		}
+	}
+
+	void record(
+		std::string const& _file,
+		std::string const& _message,
+		std::string const& _actual,
+		std::string const& _desired
+	)
+	{
+		if (m_outfile)
+		{
+			std::map<std::string, std::string> const status {
+				{"message", _message},
+				{"actual", _actual},
+				{"desired", _desired}
+			};
+			m_outputContents[_file].push_back(status);
+		}
+	}
+
+	std::optional<std::string> m_outfile;
+	std::map<std::string, std::vector<std::map<std::string, std::string>>> m_outputContents;
+};
+
 int main(int argc, char** argv)
 {
-	if (argc != 3)
+	if (argc != 3 && argc != 4)
 	{
-		std::cerr << "Usage: " << argv[0] << " <evmone> <testtracefile>" << std::endl;
+		std::cerr << "Usage: " << argv[0] << " <evmone> <testtracefile> [<resultfile>]" << std::endl;
 		return 1;
 	}
 
@@ -20,19 +59,23 @@ int main(int argc, char** argv)
 
 	evmc::VM& vm = EVMHost::getVM(argv[1]);
 
+	std::optional<std::string> outfile = argc == 4 ? std::make_optional<std::string>(argv[3]) : std::nullopt;
+	ResultRecorder resultRecorder{outfile};
+
+	bool hasTestFailure = false;
 	for(auto&& [filename, testdata]: testtrace.items())
 	{
 		std::cout << filename << std::endl;
-		std::unique_ptr<EVMHost> m_evmcHost;
+		std::unique_ptr<EVMHost> evmcHost;
 
-		m_evmcHost = std::make_unique<EVMHost>(langutil::EVMVersion{}, vm);
+		evmcHost = std::make_unique<EVMHost>(langutil::EVMVersion{}, vm);
 
 		auto account = [](size_t i) {
 			return h160(h256(u256{"0x1212121212121212121212121212120000000012"} + i * 0x1000), h160::AlignRight);
 		};
 
 		for (size_t i = 0; i < 10; i++)
-			m_evmcHost->accounts[EVMHost::convertToEVMC(account(i))].balance =
+			evmcHost->accounts[EVMHost::convertToEVMC(account(i))].balance =
 				EVMHost::convertToEVMC(u256(1) << 100);
 
 		bytes bytecode = util::fromHex(testdata["bytecode"]);
@@ -41,7 +84,8 @@ int main(int argc, char** argv)
 		unsigned i = 0;
 		for (auto& test: testdata["tests"])
 		{
-			m_evmcHost->newBlock();
+			++i;
+			evmcHost->newBlock();
 			evmc_message message{};
 			bytes input = util::fromHex(test["input"]["calldata"].get<std::string>());
 			message.sender = EVMHost::convertToEVMC(sender);
@@ -68,12 +112,14 @@ int main(int argc, char** argv)
 			else
 			{
 				std::cerr << "Unrecognized kind: " << kind << std::endl;
-				return 1;
+				hasTestFailure = true;
+				resultRecorder.record(filename, "Unrecognized kind of test", kind, R"("constructor" or "call")");
+				continue;
 			}
 
 			message.gas = 100000000;
 
-			evmc::Result result = m_evmcHost->call(message);
+			evmc::Result result = evmcHost->call(message);
 
 			auto output = bytes(result.output_data, result.output_data + result.output_size);
 			if (kind == "constructor")
@@ -88,8 +134,11 @@ int main(int argc, char** argv)
 				if (!status)
 				{
 					std::cerr << "Creation failed." << std::endl;
-					return 1;
+					resultRecorder.record(filename, "Creation failed for constructor test.", "", "");
+					hasTestFailure = true;
+					continue;
 				}
+				resultRecorder.record(filename, "Creation succeeded.", "", "");
 			}
 			else
 			{
@@ -99,7 +148,9 @@ int main(int argc, char** argv)
 					if (status)
 					{
 						std::cerr << "Expected failure but got success" << std::endl;
-						return 1;
+						resultRecorder.record(filename, "Expected test status failure but got success.", "success", expectedStatus);
+						hasTestFailure = true;
+						continue;
 					}
 				}
 				else if (expectedStatus == "success")
@@ -107,19 +158,24 @@ int main(int argc, char** argv)
 					if (!status)
 					{
 						std::cerr << "Expected success but got failure" << std::endl;
-						return 1;
+						resultRecorder.record(filename, "Expected test status success but got failure.", "failure", expectedStatus);
+						hasTestFailure = true;
+						continue;
 					}
 				}
 				auto expectedOutput = test["output"]["returndata"].get<std::string>();
 				if (output != util::fromHex(expectedOutput))
 				{
 					std::cerr << "Expected " << expectedOutput << " but got " << util::toHex(output) << std::endl;
-					return 1;
+					resultRecorder.record(filename, "Expected different output.", util::toHex(output), expectedOutput);
+					hasTestFailure = true;
+					continue;
 				}
+				resultRecorder.record(filename, "Passed.", util::toHex(output), expectedOutput);
 			}
-			i++;
 		}
-		std::cout << "  => " << i << " tests passed." << std::endl;
+		std::cout << "  => " << i << " tests performed." << std::endl;
 	}
-	return 0;
+
+	return hasTestFailure ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -194,6 +194,7 @@ struct CommandLineOptions
 		bool overwriteFiles = false;
 		langutil::EVMVersion evmVersion;
 		bool viaIR = false;
+		bool ssaCfgCodegen = false;
 		RevertStrings revertStrings = RevertStrings::Default;
 		std::optional<langutil::DebugInfoSelection> debugInfoSelection;
 		CompilerStack::State stopAfter = CompilerStack::State::CompilationSuccessful;

@@ -138,14 +138,16 @@ public:
 	/// Note that parsing and analysis are not selectable, since they cannot be skipped.
 	struct PipelineConfig
 	{
-		bool irCodegen = false;      ///< Want IR output straight from code generator.
-		bool irOptimization = false; ///< Want reparsed IR that went through YulStack. May be optimized or not, depending on settings.
-		bool bytecode = false;       ///< Want EVM-level outputs, especially EVM assembly and bytecode. May be optimized or not, depending on settings.
+		bool irCodegen = false;        ///< Want IR output straight from code generator.
+		bool irCodegenSSACFG = false;  ///< Want IR output from the SSA CFG code generator.
+		bool irOptimization = false;   ///< Want reparsed IR that went through YulStack. May be optimized or not, depending on settings.
+		bool bytecode = false;         ///< Want EVM-level outputs, especially EVM assembly and bytecode. May be optimized or not, depending on settings.
 
 		bool needIR(bool _viaIR) const
 		{
 			return
 				irCodegen ||
+				irCodegenSSACFG ||
 				irOptimization ||
 				(bytecode && _viaIR);
 		}
@@ -164,6 +166,7 @@ public:
 		{
 			return {
 				irCodegen || _other.irCodegen,
+				irCodegenSSACFG || _other.irCodegenSSACFG,
 				irOptimization || _other.irOptimization,
 				bytecode || _other.bytecode,
 			};
@@ -174,6 +177,7 @@ public:
 		{
 			return
 				irCodegen == _other.irCodegen &&
+				irCodegenSSACFG == _other.irCodegenSSACFG &&
 				irOptimization == _other.irOptimization &&
 				bytecode == _other.bytecode;
 		}
@@ -222,6 +226,10 @@ public:
 	/// Sets the pipeline to go through the Yul IR or not.
 	/// Must be set before parsing.
 	void setViaIR(bool _viaIR);
+
+	/// Sets the pipeline to go through the SSA CFG codegen path of via-ir.
+	/// Must be set before parsing.
+	void setSSACFGCodegen(bool _ssaCfgCodegen);
 
 	/// Set the EVM version used before running compile.
 	/// When called without an argument it will revert to the default version.
@@ -607,6 +615,7 @@ private:
 	RevertStrings m_revertStrings = RevertStrings::Default;
 	State m_stopAfter = State::CompilationSuccessful;
 	bool m_viaIR = false;
+	bool m_ssaCfgCodegen = false;
 	langutil::EVMVersion m_evmVersion;
 	std::optional<uint8_t> m_eofVersion;
 	ModelCheckerSettings m_modelCheckerSettings;

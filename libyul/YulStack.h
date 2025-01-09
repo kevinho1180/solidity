@@ -118,7 +118,7 @@ public:
 	void optimize();
 
 	/// Run the assembly step (should only be called after parseAndAnalyze).
-	MachineAssemblyObject assemble(Machine _machine);
+	MachineAssemblyObject assemble(Machine _machine, bool _ssaCfgCodegen = false);
 
 	/// Run the assembly step (should only be called after parseAndAnalyze).
 	/// In addition to the value returned by @a assemble, returns
@@ -126,7 +126,8 @@ public:
 	/// Only available for EVM.
 	std::pair<MachineAssemblyObject, MachineAssemblyObject>
 	assembleWithDeployed(
-		std::optional<std::string_view> _deployName = {}
+		std::optional<std::string_view> _deployName = {},
+		bool _ssaCfgCodgen = false
 	);
 
 	/// Run the assembly step (should only be called after parseAndAnalyze).
@@ -134,7 +135,8 @@ public:
 	/// Only available for EVM.
 	std::pair<std::shared_ptr<evmasm::Assembly>, std::shared_ptr<evmasm::Assembly>>
 	assembleEVMWithDeployed(
-		std::optional<std::string_view> _deployName = {}
+		std::optional<std::string_view> _deployName = {},
+		bool _ssaCfgCodegen = false
 	);
 
 	/// @returns the errors generated during parsing, analysis (and potentially assembly).
@@ -164,7 +166,7 @@ private:
 	bool analyzeParsed();
 	bool analyzeParsed(yul::Object& _object);
 
-	void compileEVM(yul::AbstractAssembly& _assembly, bool _optimize) const;
+	void compileEVM(yul::AbstractAssembly& _assembly, bool _optimize, bool _ssaCfgCodegen) const;
 
 	/// Prints the Yul object stored internally and parses it again.
 	/// This ensures that the debug info in the AST matches the source that printing would produce

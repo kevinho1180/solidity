@@ -23,6 +23,8 @@
 
 #include <libyul/backends/evm/EVMCodeTransform.h>
 #include <libyul/backends/evm/EVMDialect.h>
+#include <libyul/backends/evm/SSACFGEVMCodeTransform.h>
+#include <libyul/backends/evm/SSAControlFlowGraphBuilder.h>
 #include <libyul/backends/evm/OptimizedEVMCodeTransform.h>
 
 #include <libyul/optimiser/FunctionCallFinder.h>
@@ -37,14 +39,15 @@ using namespace solidity::yul;
 void EVMObjectCompiler::compile(
 	Object const& _object,
 	AbstractAssembly& _assembly,
-	bool _optimize
+	bool _optimize,
+	bool _ssaCfgCodegen
 )
 {
 	EVMObjectCompiler compiler(_assembly);
-	compiler.run(_object, _optimize);
+	compiler.run(_object, _optimize, _ssaCfgCodegen);
 }
 
-void EVMObjectCompiler::run(Object const& _object, bool _optimize)
+void EVMObjectCompiler::run(Object const& _object, bool _optimize, bool const _ssaCfgCodegen)
 {
 	yulAssert(_object.dialect());
 	auto const* evmDialect = dynamic_cast<EVMDialect const*>(_object.dialect());
@@ -61,7 +64,7 @@ void EVMObjectCompiler::run(Object const& _object, bool _optimize)
 			auto subAssemblyAndID = m_assembly.createSubAssembly(isCreation, subObject->name);
 			context.subIDs[subObject->name] = subAssemblyAndID.second;
 			subObject->subId = subAssemblyAndID.second;
-			compile(*subObject, *subAssemblyAndID.first, _optimize);
+			compile(*subObject, *subAssemblyAndID.first, _optimize, _ssaCfgCodegen);
 		}
 		else
 		{
@@ -82,14 +85,31 @@ void EVMObjectCompiler::run(Object const& _object, bool _optimize)
 	}
 	if (_optimize && evmDialect->evmVersion().canOverchargeGasForCall())
 	{
-		auto stackErrors = OptimizedEVMCodeTransform::run(
-			m_assembly,
-			*_object.analysisInfo,
-			_object.code()->root(),
-			*evmDialect,
-			context,
-			OptimizedEVMCodeTransform::UseNamedLabels::ForFirstFunctionOfEachName
-		);
+		std::vector<StackTooDeepError> stackErrors;
+		if (!_ssaCfgCodegen)
+			stackErrors = OptimizedEVMCodeTransform::run(
+				m_assembly,
+				*_object.analysisInfo,
+				_object.code()->root(),
+				*evmDialect,
+				context,
+				OptimizedEVMCodeTransform::UseNamedLabels::ForFirstFunctionOfEachName
+			);
+		else
+		{
+			std::unique_ptr<ControlFlow> const controlFlow = SSAControlFlowGraphBuilder::build(
+				*_object.analysisInfo,
+				*_object.dialect(),
+				_object.code()->root()
+			);
+			ControlFlowLiveness const liveness(*controlFlow);
+			stackErrors = SSACFGEVMCodeTransform::run(
+				m_assembly,
+				liveness,
+				context,
+				SSACFGEVMCodeTransform::UseNamedLabels::ForFirstFunctionOfEachName
+			);
+		}
 		if (!stackErrors.empty())
 		{
 			yulAssert(_object.dialect());

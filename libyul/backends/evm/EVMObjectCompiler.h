@@ -36,12 +36,13 @@ public:
 	static void compile(
 		Object const& _object,
 		AbstractAssembly& _assembly,
-		bool _optimize
+		bool _optimize,
+		bool _ssaCfgCodegen
 	);
 private:
 	EVMObjectCompiler(AbstractAssembly& _assembly): m_assembly(_assembly) {}
 
-	void run(Object const& _object, bool _optimize);
+	void run(Object const& _object, bool _optimize, bool _ssaCfgCodegen);
 
 	AbstractAssembly& m_assembly;
 };

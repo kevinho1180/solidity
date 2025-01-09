@@ -228,6 +228,12 @@ void CompilerStack::setViaIR(bool _viaIR)
 	m_viaIR = _viaIR;
 }
 
+void CompilerStack::setSSACFGCodegen(bool _ssaCfgCodegen)
+{
+	solAssert(m_stackState < CompilationSuccessful, "Must set SSA CFG Codegen path before compilation.");
+	m_ssaCfgCodegen = _ssaCfgCodegen;
+}
+
 void CompilerStack::setEVMVersion(langutil::EVMVersion _version)
 {
 	solAssert(m_stackState < ParsedAndImported, "Must set EVM version before parsing.");
@@ -318,6 +324,7 @@ void CompilerStack::reset(bool _keepSettings)
 		m_importRemapper.clear();
 		m_libraries.clear();
 		m_viaIR = false;
+		m_ssaCfgCodegen = false;
 		m_evmVersion = langutil::EVMVersion();
 		m_eofVersion.reset();
 		m_modelCheckerSettings = ModelCheckerSettings{};
@@ -728,6 +735,7 @@ CompilerStack::PipelineConfig CompilerStack::requestedPipelineConfig(ContractDef
 {
 	static PipelineConfig constexpr defaultPipelineConfig = PipelineConfig{
 		false, // irCodegen
+		false, // irCodegenSSACFG
 		false, // irOptimization
 		true,  // bytecode
 	};
@@ -1664,7 +1672,7 @@ void CompilerStack::generateEVMFromIR(ContractDefinition const& _contract)
 
 	std::string deployedName = IRNames::deployedObject(_contract);
 	solAssert(!deployedName.empty(), "");
-	tie(compiledContract.evmAssembly, compiledContract.evmRuntimeAssembly) = stack.assembleEVMWithDeployed(deployedName);
+	tie(compiledContract.evmAssembly, compiledContract.evmRuntimeAssembly) = stack.assembleEVMWithDeployed(deployedName, m_ssaCfgCodegen);
 
 	if (stack.hasErrors())
 	{

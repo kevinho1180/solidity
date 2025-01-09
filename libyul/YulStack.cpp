@@ -191,9 +191,9 @@ bool YulStack::analyzeParsed(Object& _object)
 	return success;
 }
 
-void YulStack::compileEVM(AbstractAssembly& _assembly, bool _optimize) const
+void YulStack::compileEVM(AbstractAssembly& _assembly, bool const _optimize, bool const _ssaCfgCodegen) const
 {
-	EVMObjectCompiler::compile(*m_parserResult, _assembly, _optimize);
+	EVMObjectCompiler::compile(*m_parserResult, _assembly, _optimize, _ssaCfgCodegen);
 }
 
 void YulStack::reparse()
@@ -231,7 +231,7 @@ void YulStack::reparse()
 	// locations and fewer warnings.
 }
 
-MachineAssemblyObject YulStack::assemble(Machine _machine)
+MachineAssemblyObject YulStack::assemble(Machine _machine, bool _ssaCfgCodegen)
 {
 	yulAssert(m_stackState >= AnalysisSuccessful);
 	yulAssert(m_parserResult, "");
@@ -241,17 +241,17 @@ MachineAssemblyObject YulStack::assemble(Machine _machine)
 	switch (_machine)
 	{
 	case Machine::EVM:
-		return assembleWithDeployed().first;
+		return assembleWithDeployed({}, _ssaCfgCodegen).first;
 	}
 	unreachable();
 }
 
 std::pair<MachineAssemblyObject, MachineAssemblyObject>
-YulStack::assembleWithDeployed(std::optional<std::string_view> _deployName)
+YulStack::assembleWithDeployed(std::optional<std::string_view> _deployName, bool _ssaCfgCodegen)
 {
 	yulAssert(m_charStream);
 
-	auto [creationAssembly, deployedAssembly] = assembleEVMWithDeployed(_deployName);
+	auto [creationAssembly, deployedAssembly] = assembleEVMWithDeployed(_deployName, _ssaCfgCodegen);
 	if (!creationAssembly)
 	{
 		yulAssert(!deployedAssembly);
@@ -303,7 +303,7 @@ YulStack::assembleWithDeployed(std::optional<std::string_view> _deployName)
 }
 
 std::pair<std::shared_ptr<evmasm::Assembly>, std::shared_ptr<evmasm::Assembly>>
-YulStack::assembleEVMWithDeployed(std::optional<std::string_view> _deployName)
+YulStack::assembleEVMWithDeployed(std::optional<std::string_view> _deployName, bool _ssaCfgCodegen)
 {
 	yulAssert(m_stackState >= AnalysisSuccessful);
 	yulAssert(m_parserResult, "");
@@ -322,7 +322,7 @@ YulStack::assembleEVMWithDeployed(std::optional<std::string_view> _deployName)
 	);
 	try
 	{
-		compileEVM(adapter, optimize);
+		compileEVM(adapter, optimize, _ssaCfgCodegen);
 
 		assembly.optimise(evmasm::Assembly::OptimiserSettings::translateSettings(m_optimiserSettings));
 

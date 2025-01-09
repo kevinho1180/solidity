@@ -42,6 +42,7 @@ public:
 	LivenessData const& liveOut(SSACFG::BlockId _blockId) const { return m_liveOuts[_blockId.value]; }
 	std::vector<LivenessData> const& operationsLiveOut(SSACFG::BlockId _blockId) const { return m_operationLiveOuts[_blockId.value]; }
 	ForwardSSACFGTopologicalSort const& topologicalSort() const { return m_topologicalSort; }
+	SSACFG const& cfg() const { return m_cfg; }
 private:
 
 	void runDagDfs();

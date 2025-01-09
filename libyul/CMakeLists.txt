@@ -74,6 +74,8 @@ add_library(yul
 	backends/evm/SSACFGEVMCodeTransform.h
 	backends/evm/SSACFGLiveness.cpp
 	backends/evm/SSACFGLiveness.h
+	backends/evm/SSACFGStackLayoutGenerator.cpp
+	backends/evm/SSACFGStackLayoutGenerator.h
 	backends/evm/SSACFGLoopNestingForest.cpp
 	backends/evm/SSACFGLoopNestingForest.h
 	backends/evm/SSACFGTopologicalSort.cpp

@@ -21,6 +21,7 @@
 
 #include <libyul/backends/evm/ControlFlowGraph.h>
 #include <libyul/backends/evm/SSAControlFlowGraphBuilder.h>
+#include <libyul/backends/evm/StackHelpers.h>
 
 #include <libsolutil/StringUtils.h>
 #include <libsolutil/Visitor.h>
@@ -63,7 +64,7 @@ std::string ssaCfgVarToString(SSACFG const& _cfg, SSACFG::ValueId _var)
 	);
 }
 
-std::string stackSlotToString(SSACFG const& _cfg, ssacfg::StackSlot const& _slot)
+std::string stackSlotToStringLoc(SSACFG const& _cfg, ssacfg::StackSlot const& _slot)
 {
 	return std::visit(util::GenericVisitor{
 		[&](SSACFG::ValueId _value) {
@@ -74,9 +75,9 @@ std::string stackSlotToString(SSACFG const& _cfg, ssacfg::StackSlot const& _slot
 		}
 	}, _slot);
 }
-std::string stackToString(SSACFG const& _cfg, std::vector<ssacfg::StackSlot> const& _stack)
+std::string stackToStringLoc(SSACFG const& _cfg, std::vector<ssacfg::StackSlot> const& _stack)
 {
-	return "[" + util::joinHumanReadable(_stack | ranges::views::transform([&](ssacfg::StackSlot const& _slot) { return stackSlotToString(_cfg, _slot); })) + "]";
+	return "[" + util::joinHumanReadable(_stack | ranges::views::transform([&](ssacfg::StackSlot const& _slot) { return stackSlotToStringLoc(_cfg, _slot); })) + "]";
 }
 }
 
@@ -174,14 +175,80 @@ void ssacfg::Stack::bringUpSlot(StackSlot const& _slot)
 
 void ssacfg::Stack::createExactStack(std::vector<StackSlot> const& _target, PhiMapping const& _phis)
 {
+	struct ShuffleOperations
+	{
+		Stack& currentStack;
+		std::map<StackSlot, size_t> sourceCounts;
+		std::vector<StackSlot> const& targetStack;
+		std::map<StackSlot, size_t> targetCounts;
+
+		ShuffleOperations(
+			ssacfg::Stack& _currentStack,
+			std::vector<StackSlot> const& _targetStack
+		): currentStack(_currentStack), targetStack(_targetStack)
+		{
+			auto const histogram = [](std::vector<StackSlot> const& _stack)
+			{
+				std::map<StackSlot, size_t> counts;
+				for (auto const& targetSlot: _stack)
+					counts[targetSlot]++;
+				return counts;
+			};
+			targetCounts = histogram(targetStack);
+			sourceCounts = histogram(currentStack.data());
+		}
+
+		bool isCompatible(size_t _source, size_t _target) const
+		{
+			return _source < currentStack.size() && _target < targetStack.size() && currentStack.data()[_source] == targetStack[_target];
+		}
+
+		bool sourceIsSame(size_t _sourceOffset1, size_t _sourceOffset2) const
+		{
+			return _sourceOffset1 < currentStack.size() && _sourceOffset2 < currentStack.size() && currentStack.data()[_sourceOffset1] == currentStack.data()[_sourceOffset2];
+		}
+
+		int sourceMultiplicity(size_t _sourceOffset) const
+		{
+			auto const& slot = currentStack.data()[_sourceOffset];
+			return static_cast<int>(util::valueOrDefault(targetCounts, slot, static_cast<size_t>(0))) - static_cast<int>(sourceCounts.at(slot));
+		}
+
+		int targetMultiplicity(size_t _targetOffset) const
+		{
+			auto const& slot = targetStack[_targetOffset];
+			return static_cast<int>(targetCounts.at(slot)) - static_cast<int>(util::valueOrDefault(sourceCounts, slot, static_cast<size_t>(0)));
+		}
+
+		bool targetIsArbitrary(size_t) const { return false; }
+
+		size_t sourceSize() const { return currentStack.size(); }
+		size_t targetSize() const { return targetStack.size(); }
+
+		void swap(size_t _depth)
+		{
+			currentStack.swap(_depth);
+		}
+
+		void pop()
+		{
+			currentStack.pop();
+		}
+
+		void pushOrDupTarget(size_t _targetOffset)
+		{
+			currentStack.bringUpSlot(targetStack[_targetOffset]);
+		}
+
+	};
 	if (_phis.empty())
 	{
-		permute(_target);
+		Shuffler<ShuffleOperations>::shuffle(*this, _target);
 		return;
 	}
 
 	auto const mappedTarget = _phis.transformStackToPhiValues(_target);
-	permute(mappedTarget);
+	Shuffler<ShuffleOperations>::shuffle(*this, mappedTarget);
 	m_stack = _target;
 }
 void ssacfg::Stack::createStack(
@@ -207,7 +274,7 @@ void ssacfg::Stack::clear()
 void ssacfg::Stack::permute(std::vector<StackSlot> const& _target)
 {
 	if constexpr (debugOutput)
-		std::cout << fmt::format("\t\tPermuting to exact stack {} -> {}", stackToString(m_cfg.get(), m_stack), stackToString(m_cfg.get(), _target)) << std::endl;
+		std::cout << fmt::format("\t\tPermuting to exact stack {} -> {}", stackToStringLoc(m_cfg.get(), m_stack), stackToStringLoc(m_cfg.get(), _target)) << std::endl;
 
 	{
 		auto const histogram = [](std::vector<StackSlot> const& _stack)
@@ -271,12 +338,12 @@ void ssacfg::Stack::permute(std::vector<StackSlot> const& _target)
 		}
 		yulAssert(
 			m_stack[i] == _target[i],
-			fmt::format("Stack target mismatch: current[{}] = {} =/= {} = target[{}]", i, stackSlotToString(m_cfg.get(), m_stack[i]), stackSlotToString(m_cfg.get(), _target[i]), i)
+			fmt::format("Stack target mismatch: current[{}] = {} =/= {} = target[{}]", i, stackSlotToStringLoc(m_cfg.get(), m_stack[i]), stackSlotToStringLoc(m_cfg.get(), _target[i]), i)
 		);
 	}
 
 	yulAssert(size() == _target.size());
-	yulAssert(m_stack == _target, fmt::format("Stack target mismatch: current = {} =/= {} = target", stackToString(m_cfg.get(), m_stack), stackToString(m_cfg.get(), _target)));
+	yulAssert(m_stack == _target, fmt::format("Stack target mismatch: current = {} =/= {} = target", stackToStringLoc(m_cfg.get(), m_stack), stackToStringLoc(m_cfg.get(), _target)));
 }
 
 std::vector<StackTooDeepError> SSACFGEVMCodeTransform::run(
@@ -564,7 +631,7 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::Operation const& _operation, std
 	std::visit(util::GenericVisitor {
 		[&](SSACFG::BuiltinCall const& _builtin) {
 			if constexpr (debugOutput)
-				std::cout << "\t\t\tBuiltin call: " << _builtin.builtin.get().name << ": " << stackToString(m_cfg, m_stack.data()) << std::endl;
+				std::cout << "\t\t\tBuiltin call: " << _builtin.builtin.get().name << ": " << stackToStringLoc(m_cfg, m_stack.data()) << std::endl;
 			m_assembly.setSourceLocation(originLocationOf(_builtin));
 			static_cast<BuiltinFunctionForEVM const&>(_builtin.builtin.get()).generateCode(
 				_builtin.call,
@@ -575,7 +642,7 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::Operation const& _operation, std
 		[&](SSACFG::Call const& _call) {
 			if constexpr (debugOutput)
 			{
-				std::cout << "\t\t\tCall: " << _call.function.get().name.str() << " (label=" << functionLabel(_call.function) << ")" << ": " << stackToString(m_cfg, m_stack.data());
+				std::cout << "\t\t\tCall: " << _call.function.get().name.str() << " (label=" << functionLabel(_call.function) << ")" << ": " << stackToStringLoc(m_cfg, m_stack.data());
 				if (returnLabel)
 					std::cout << ", returnLabel: " << *returnLabel;
 				std::cout << std::endl;

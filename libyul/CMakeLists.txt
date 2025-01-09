@@ -70,6 +70,8 @@ add_library(yul
 	backends/evm/NoOutputAssembly.cpp
 	backends/evm/OptimizedEVMCodeTransform.cpp
 	backends/evm/OptimizedEVMCodeTransform.h
+	backends/evm/SSACFGEVMCodeTransform.cpp
+	backends/evm/SSACFGEVMCodeTransform.h
 	backends/evm/SSACFGLiveness.cpp
 	backends/evm/SSACFGLiveness.h
 	backends/evm/SSACFGLoopNestingForest.cpp

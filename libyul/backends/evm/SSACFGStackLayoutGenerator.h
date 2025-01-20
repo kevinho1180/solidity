@@ -18,22 +18,47 @@
 
 #pragma once
 
+#include <libyul/backends/evm/AbstractAssembly.h>
+#include <libyul/backends/evm/SSAControlFlowGraph.h>
+
+#include <variant>
+
 namespace solidity::yul {
 
 struct ControlFlowLiveness;
 struct ControlFlow;
 class SSACFGLiveness;
-class SSACFG;
+
+struct SSACFGStackLayout
+{
+	// a slot can be some valueId or a labelId
+	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID>;
+	// each operation has a current stack
+	using Stack = std::vector<Slot>;
+	// each block has a fixed list of operations
+	using BlockLayouts = std::vector<Stack>;
+
+	// layout for the main graph
+	BlockLayouts mainLayout;
+	// layout for each function graph, ordered as in the `ControlFlow`
+	std::vector<BlockLayouts> functionLayouts;
+};
 
 class SSACFGStackLayoutGenerator {
 public:
-	static void run(ControlFlowLiveness const& _controlFlowLiveness);
+	static SSACFGStackLayout run(ControlFlowLiveness const& _controlFlowLiveness);
 private:
-	SSACFGStackLayoutGenerator(SSACFGLiveness const& _liveness);
+	SSACFGStackLayoutGenerator(SSACFGLiveness const& _liveness, SSACFGStackLayout::Stack const& _initialStack = {});
 	~SSACFGStackLayoutGenerator();
+
+	SSACFGStackLayout::BlockLayouts processEntryPoint();
+
+	bool requiresCleanStack(SSACFG::BlockId _block) const;
 
 	SSACFGLiveness const& m_liveness;
 	SSACFG const& m_cfg;
+
+	SSACFGStackLayout::BlockLayouts m_layout;
 };
 
 }

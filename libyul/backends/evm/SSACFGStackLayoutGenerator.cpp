@@ -21,18 +21,46 @@
 #include <libyul/backends/evm/ControlFlow.h>
 #include <libyul/backends/evm/SSACFGLiveness.h>
 
+#include <libsolutil/Visitor.h>
+
 using namespace solidity::yul;
 
-void SSACFGStackLayoutGenerator::run(ControlFlowLiveness const& _controlFlowLiveness)
+SSACFGStackLayout SSACFGStackLayoutGenerator::run(ControlFlowLiveness const& _controlFlowLiveness)
 {
-	SSACFGStackLayoutGenerator main{*_controlFlowLiveness.mainLiveness};
+	SSACFGStackLayout layout;
+	layout.mainLayout = SSACFGStackLayoutGenerator{*_controlFlowLiveness.mainLiveness}.processEntryPoint();
+
+	layout.functionLayouts.reserve(_controlFlowLiveness.functionLiveness.size());
+	for (auto const& functionLiveness: _controlFlowLiveness.functionLiveness)
+		layout.functionLayouts.push_back(SSACFGStackLayoutGenerator{*functionLiveness}.processEntryPoint());
+
+	return layout;
 }
 
-SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(SSACFGLiveness const& _liveness):
+SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
+	SSACFGLiveness const& _liveness, SSACFGStackLayout::Stack const& _initialStack
+):
 	m_liveness(_liveness),
 	m_cfg(_liveness.cfg())
 {
+	if (m_cfg.function)
+	{
 
+	}
+	else
+	{
+
+	}
 }
 
 SSACFGStackLayoutGenerator::~SSACFGStackLayoutGenerator() = default;
+
+bool SSACFGStackLayoutGenerator::requiresCleanStack(SSACFG::BlockId const _block) const
+{
+	util::GenericVisitor constexpr exitVisitor{
+		[&](SSACFG::BasicBlock::MainExit const&) { return false; },
+		[&](SSACFG::BasicBlock::Terminated const&){ return false; },
+		[](auto const&) { return true; }
+	};
+	return std::visit(exitVisitor, m_cfg.block(_block).exit);
+}

@@ -394,12 +394,6 @@ std::vector<StackTooDeepError> SSACFGEVMCodeTransform::run(
 		if (!functionCodeTransform.m_stackErrors.empty())
 			stackErrors.insert(stackErrors.end(), functionCodeTransform.m_stackErrors.begin(), functionCodeTransform.m_stackErrors.end());
 	}
-	/*if (auto adapter = dynamic_cast<EthAssemblyAdapter*>(&_assembly))
-	{
-		// todo remove, just for debugging
-		std::cout << "------------------------------------------" << std::endl;
-		std::cout << *adapter << std::endl;
-	}*/
 	return stackErrors;
 }
 
@@ -456,7 +450,7 @@ void SSACFGEVMCodeTransform::transformFunction(Scope::Function const& _function)
 	if constexpr (debugOutput)
 		std::cout << "Generating code for function " << _function.name.str() << ", label=" << label << std::endl;
 	m_assembly.appendLabel(label);
-	blockData(m_cfg.entry).stackIn = m_cfg.arguments | ranges::views::transform([](auto&& _tuple) { return std::get<1>(_tuple); }) | ranges::to<std::vector<ssacfg::StackSlot>>;
+	blockData(m_cfg.entry).stackIn = m_cfg.arguments | ranges::views::reverse | ranges::views::transform([](auto&& _tuple) { return std::get<1>(_tuple); }) | ranges::to<std::vector<ssacfg::StackSlot>>;
 	(*this)(m_cfg.entry);
 }
 
@@ -615,10 +609,7 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::Operation const& _operation, std
 			returnLabel = m_assembly.newLabelId();
 			requiredStackTop.emplace_back(*returnLabel);
 		}
-	if (std::holds_alternative<SSACFG::Call>(_operation.kind))
-		requiredStackTop += _operation.inputs | ranges::views::reverse; // todo errhh..
-	else
-		requiredStackTop += _operation.inputs;
+	requiredStackTop += _operation.inputs;
 	// literals should have been pulled out a priori and now are treated as push constants
 	yulAssert(std::none_of(
 		_liveOut.begin(),

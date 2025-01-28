@@ -7,3 +7,6 @@
 [submodule "deps/fmtlib"]
 	path = deps/fmtlib
 	url = https://github.com/fmtlib/fmt.git
+[submodule "deps/imgui"]
+	path = deps/imgui
+	url = https://github.com/ocornut/imgui.git

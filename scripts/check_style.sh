@@ -17,6 +17,7 @@ EXCLUDE_FILES=(
     "test/scripts/fixtures/smt_contract_with_crlf_newlines.sol"
     "test/scripts/fixtures/smt_contract_with_cr_newlines.sol"
     "test/scripts/fixtures/smt_contract_with_mixed_newlines.sol"
+    "tools/ethdebug/src/data/InstructionInfo.h"
 )
 EXCLUDE_FILES_JOINED=$(printf "%s\|" "${EXCLUDE_FILES[@]}")
 EXCLUDE_FILES_JOINED=${EXCLUDE_FILES_JOINED%??}

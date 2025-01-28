@@ -1,5 +1,9 @@
 include(GNUInstallDirs)
 
+if (ETHDEBUG_TOOL)
+	add_subdirectory(ethdebug)
+endif()
+
 set(libphaser_sources
 	yulPhaser/Common.h
 	yulPhaser/Common.cpp

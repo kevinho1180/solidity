@@ -118,8 +118,8 @@ SemanticTest::SemanticTest(
 
 	if (m_enforceGasCost)
 	{
-		m_compiler.setMetadataFormat(CompilerStack::MetadataFormat::NoMetadata);
-		m_compiler.setMetadataHash(CompilerStack::MetadataHash::None);
+		m_compilerInput.metadataFormat = MetadataFormat::NoMetadata;
+		m_compilerInput.metadataHash = MetadataHash::None;
 	}
 }
 
@@ -231,13 +231,15 @@ std::string SemanticTest::formatEventParameter(std::optional<AnnotatedEventSigna
 
 std::vector<std::string> SemanticTest::eventSideEffectHook(FunctionCall const&) const
 {
+	auto output = m_compiler.output();
+
 	std::vector<std::string> sideEffects;
 	std::vector<LogRecord> recordedLogs = ExecutionFramework::recordedLogs();
 	for (LogRecord const& log: recordedLogs)
 	{
 		std::optional<AnnotatedEventSignature> eventSignature;
 		if (!log.topics.empty())
-			eventSignature = matchEvent(log.topics[0]);
+			eventSignature = output.matchEvent(log.topics[0]);
 		std::stringstream sideEffect;
 		sideEffect << "emit ";
 		if (eventSignature.has_value())
@@ -271,31 +273,6 @@ std::vector<std::string> SemanticTest::eventSideEffectHook(FunctionCall const&) 
 		sideEffects.emplace_back(sideEffect.str());
 	}
 	return sideEffects;
-}
-
-std::optional<AnnotatedEventSignature> SemanticTest::matchEvent(util::h256 const& hash) const
-{
-	std::optional<AnnotatedEventSignature> result;
-	for (std::string& contractName: m_compiler.contractNames())
-	{
-		ContractDefinition const& contract = m_compiler.contractDefinition(contractName);
-		for (EventDefinition const* event: contract.events() + contract.usedInterfaceEvents())
-		{
-			FunctionTypePointer eventFunctionType = event->functionType(true);
-			if (!event->isAnonymous() && keccak256(eventFunctionType->externalSignature()) == hash)
-			{
-				AnnotatedEventSignature eventInfo;
-				eventInfo.signature = eventFunctionType->externalSignature();
-				for (auto const& param: event->parameters())
-					if (param->isIndexed())
-						eventInfo.indexedTypes.emplace_back(param->type()->toString(true));
-					else
-						eventInfo.nonIndexedTypes.emplace_back(param->type()->toString(true));
-				result = eventInfo;
-			}
-		}
-	}
-	return result;
 }
 
 frontend::OptimiserSettings SemanticTest::optimizerSettingsFor(RequiresYulOptimizer _requiresYulOptimizer)
@@ -383,13 +360,14 @@ TestCase::TestResult SemanticTest::runTest(
 		}
 		else if (test.call().kind == FunctionCall::Kind::Library)
 		{
+			std::string name = test.call().libraryFile + ":" + test.call().signature;
 			soltestAssert(
-				deploy(test.call().signature, 0, {}, libraries) && m_transactionSuccessful,
+				deploy(name, 0, {}, libraries) && m_transactionSuccessful,
 				"Failed to deploy library " + test.call().signature);
 			// For convenience, in semantic tests we assume that an unqualified name like `L` is equivalent to one
 			// with an empty source unit name (`:L`). This is fine because the compiler never uses unqualified
 			// names in the Yul code it produces and does not allow `linkersymbol()` at all in inline assembly.
-			libraries[test.call().libraryFile + ":" + test.call().signature] = m_contractAddress;
+			libraries[name] = m_contractAddress;
 			continue;
 		}
 		else
@@ -416,7 +394,14 @@ TestCase::TestResult SemanticTest::runTest(
 		}
 		else
 		{
+			ContractName contractName{m_sources.mainSourceFile, ""};
+
+			auto compiledContract = m_compiler.output().contract(contractName);
+			solAssert(compiledContract.has_value());
+
+			CompiledContract contract = compiledContract.value();
 			bytes output;
+
 			if (test.call().kind == FunctionCall::Kind::LowLevel)
 				output = callLowLevel(test.call().arguments.rawBytes(), test.call().value.value);
 			else if (test.call().kind == FunctionCall::Kind::Builtin)
@@ -432,9 +417,10 @@ TestCase::TestResult SemanticTest::runTest(
 			}
 			else
 			{
+				soltestAssert(contract.interfaceSymbols.has_value());
 				soltestAssert(
 					m_allowNonExistingFunctions ||
-					m_compiler.interfaceSymbols(m_compiler.lastContractName(m_sources.mainSourceFile))["methods"].contains(test.call().signature),
+					contract.interfaceSymbols.value()["methods"].contains(test.call().signature),
 					"The function " + test.call().signature + " is not known to the compiler"
 				);
 
@@ -462,7 +448,8 @@ TestCase::TestResult SemanticTest::runTest(
 			test.setFailure(!m_transactionSuccessful);
 			test.setRawBytes(std::move(output));
 			if (test.call().kind != FunctionCall::Kind::LowLevel)
-				test.setContractABI(m_compiler.contractABI(m_compiler.lastContractName(m_sources.mainSourceFile)));
+				if (contract.contractABI.has_value())
+					test.setContractABI(contract.contractABI.value());
 		}
 
 		std::vector<std::string> effects;

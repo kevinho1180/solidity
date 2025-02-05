@@ -60,7 +60,7 @@ protected:
 		for (auto const& [name, expression]: m_ssaValues.values())
 			m_values[name].value = expression;
 
-		m_object->setCode(std::make_shared<AST>(*m_object->dialect(), std::move(astRoot)));
+		m_object->setCode(std::make_shared<AST>(*m_object->dialect(), ASTLabelRegistry{}, std::move(astRoot)));
 		return KnowledgeBase(
 			[this](YulName _var) { return util::valueOrNullptr(m_values, _var); },
 			*m_object->dialect()

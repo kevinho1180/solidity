@@ -118,7 +118,13 @@ void ObjectOptimizer::overwriteWithOptimizedObject(util::h256 _cacheKey, Object&
 
 	yulAssert(cachedObject.optimizedAST);
 	yulAssert(cachedObject.dialect);
-	_object.setCode(std::make_shared<AST>(*cachedObject.dialect, ASTCopier{}.translate(*cachedObject.optimizedAST)));
+	_object.setCode(
+		std::make_shared<AST>(
+			*cachedObject.dialect,
+			ASTLabelRegistry{},
+			ASTCopier{}.translate(*cachedObject.optimizedAST)
+		)
+	);
 	yulAssert(_object.code());
 	yulAssert(_object.dialect());
 

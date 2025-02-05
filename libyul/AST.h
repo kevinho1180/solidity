@@ -24,6 +24,7 @@
 #pragma once
 
 #include <libyul/ASTForward.h>
+#include <libyul/ASTLabelRegistry.h>
 #include <libyul/Builtins.h>
 #include <libyul/YulName.h>
 
@@ -109,12 +110,18 @@ struct Leave { langutil::DebugData::ConstPtr debugData; };
 class AST
 {
 public:
-	AST(Dialect const& _dialect, Block _root): m_dialect(_dialect), m_root(std::move(_root)) {}
+	AST(Dialect const& _dialect, ASTLabelRegistry _labels, Block _root):
+		m_dialect(_dialect),
+		m_labels(std::move(_labels)),
+		m_root(std::move(_root))
+	{}
 
 	Dialect const& dialect() const { return m_dialect; }
 	Block const& root() const { return m_root; }
+	ASTLabelRegistry const& labels() const { return m_labels; }
 private:
 	Dialect const& m_dialect;
+	ASTLabelRegistry m_labels;
 	Block m_root;
 };
 

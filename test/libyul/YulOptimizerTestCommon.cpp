@@ -413,7 +413,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 			size_t maxIterations = 16;
 			{
 				Object object(*m_optimizedObject);
-				object.setCode(std::make_shared<AST>(*m_object->dialect(), std::get<Block>(ASTCopier{}(block))));
+				object.setCode(std::make_shared<AST>(*m_object->dialect(), ASTLabelRegistry{}, std::get<Block>(ASTCopier{}(block))));
 				block = std::get<1>(StackCompressor::run(object, true, maxIterations));
 			}
 			BlockFlattener::run(*m_context, block);
@@ -435,7 +435,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 			auto block = disambiguate();
 			updateContext(block);
 			Object object(*m_optimizedObject);
-			object.setCode(std::make_shared<AST>(*m_object->dialect(), std::get<Block>(ASTCopier{}(block))));
+			object.setCode(std::make_shared<AST>(*m_object->dialect(), ASTLabelRegistry{}, std::get<Block>(ASTCopier{}(block))));
 			auto const unreachables = CompilabilityChecker{
 				object,
 				true
@@ -499,7 +499,7 @@ bool YulOptimizerTestCommon::runStep()
 	if (m_namedSteps.count(m_optimizerStep))
 	{
 		auto block = m_namedSteps[m_optimizerStep]();
-		m_optimizedObject->setCode(std::make_shared<AST>(*m_object->dialect(), std::move(block)));
+		m_optimizedObject->setCode(std::make_shared<AST>(*m_object->dialect(), ASTLabelRegistry{}, std::move(block)));
 	}
 	else
 		return false;

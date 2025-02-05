@@ -53,7 +53,7 @@ SourceLocation const AsmJsonImporter::createSourceLocation(Json const& _node)
 
 AST AsmJsonImporter::createAST(solidity::Json const& _node)
 {
-	return {m_dialect, createBlock(_node)};
+	return {m_dialect, ASTNodeRegistry{}, createBlock(_node)};
 }
 
 template <class T>

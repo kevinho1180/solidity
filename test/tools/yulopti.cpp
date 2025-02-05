@@ -218,7 +218,7 @@ public:
 					case ';':
 					{
 						Object obj;
-						obj.setCode(std::make_shared<AST>(m_dialect, std::get<yul::Block>(ASTCopier{}(*m_astRoot))));
+						obj.setCode(std::make_shared<AST>(m_dialect, ASTLabelRegistry{}, std::get<yul::Block>(ASTCopier{}(*m_astRoot))));
 						*m_astRoot = std::get<1>(StackCompressor::run(obj, true, 16));
 						break;
 					}

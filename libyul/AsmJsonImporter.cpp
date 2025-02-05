@@ -53,7 +53,8 @@ SourceLocation const AsmJsonImporter::createSourceLocation(Json const& _node)
 
 AST AsmJsonImporter::createAST(solidity::Json const& _node)
 {
-	return {m_dialect, ASTNodeRegistry{}, createBlock(_node)};
+	auto block = createBlock(_node);
+	return {m_dialect, m_labelRegistryBuilder.build(), std::move(block)};
 }
 
 template <class T>
@@ -80,6 +81,7 @@ NameWithDebugData AsmJsonImporter::createNameWithDebugData(Json const& _node)
 {
 	auto nameWithDebugData = createAsmNode<NameWithDebugData>(_node);
 	nameWithDebugData.name = YulName{member(_node, "name").get<std::string>()};
+	std::ignore = m_labelRegistryBuilder.define(nameWithDebugData.name.str());
 	return nameWithDebugData;
 }
 
@@ -235,6 +237,7 @@ Identifier AsmJsonImporter::createIdentifier(Json const& _node)
 {
 	auto identifier = createAsmNode<Identifier>(_node);
 	identifier.name = YulName(member(_node, "name").get<std::string>());
+	std::ignore = m_labelRegistryBuilder.define(identifier.name.str());
 	return identifier;
 }
 
@@ -294,6 +297,7 @@ FunctionDefinition AsmJsonImporter::createFunctionDefinition(Json const& _node)
 {
 	auto funcDef = createAsmNode<FunctionDefinition>(_node);
 	funcDef.name = YulName{member(_node, "name").get<std::string>()};
+	std::ignore = m_labelRegistryBuilder.define(funcDef.name.str());
 
 	if (_node.contains("parameters"))
 		for (auto const& var: member(_node, "parameters"))

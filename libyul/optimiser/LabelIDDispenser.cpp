@@ -18,6 +18,7 @@
 
 #include <libyul/optimiser/LabelIDDispenser.h>
 
+#include <libyul/optimiser/NameCollector.h>
 #include <libyul/optimiser/OptimizerUtilities.h>
 
 #include <fmt/compile.h>
@@ -81,10 +82,12 @@ bool LabelIDDispenser::ghost(LabelID const _id) const
 	return m_labels.ghost(_id);
 }
 
-ASTLabelRegistry LabelIDDispenser::generateNewLabels(Dialect const& _dialect) const
+ASTLabelRegistry LabelIDDispenser::generateNewLabels(Block const& _astRoot, Dialect const& _dialect) const
 {
-	auto const usedIDs =
-		ranges::views::iota(static_cast<size_t>(1), m_idToLabelMapping.size() + m_labels.maxID() + 1) |
+	std::set<LabelID> usedIDs = NameCollector(_astRoot).names();
+	// add ghosts to usedIDs as they're not referenced in the regular ast
+	usedIDs += ranges::views::iota(static_cast<size_t>(1), m_idToLabelMapping.size() + m_labels.maxID() + 1) |
+		ranges::views::filter([this](auto const& labelID) { return ghost(labelID); }) |
 		ranges::to<std::set>;
 	return generateNewLabels(usedIDs, _dialect);
 }

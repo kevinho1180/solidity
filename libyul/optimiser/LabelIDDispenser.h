@@ -26,6 +26,7 @@
 namespace solidity::yul
 {
 
+struct Block;
 class Dialect;
 
 /// Can spawn new `LabelID`s which depend on `LabelID`s from a parent label registry. Once generation is completed,
@@ -56,7 +57,7 @@ public:
 	/// Labels are guaranteed to be valid and not reserved if and only if they were valid and not reserved in the
 	/// original registry. No new invalid and/or reserved labels are introduced.
 	ASTLabelRegistry generateNewLabels(std::set<LabelID> const& _usedIDs, Dialect const& _dialect) const;
-	ASTLabelRegistry generateNewLabels(Dialect const& _dialect) const;
+	ASTLabelRegistry generateNewLabels(Block const& _astRoot, Dialect const& _dialect) const;
 private:
 	/// For newly added label IDs, this yields the parent ID which is contained in the provided registry.
 	/// For label IDs which already are not new, this function is the identity.

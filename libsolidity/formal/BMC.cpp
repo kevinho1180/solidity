@@ -247,14 +247,8 @@ bool BMC::visit(IfStatement const& _node)
 	m_context.pushSolver();
 	_node.condition().accept(*this);
 
-	// We ignore called functions here because they have
-	// specific input values.
-	if (isRootFunction() && !isInsideLoop())
-		addVerificationTarget(
-			VerificationTargetType::ConstantCondition,
-			expr(_node.condition()),
-			&_node.condition()
-		);
+	checkIfConditionIsConstant(_node.condition());
+
 	m_context.popSolver();
 	resetVariableIndices(std::move(indicesBeforePush));
 
@@ -283,13 +277,7 @@ bool BMC::visit(Conditional const& _op)
 	auto indicesBeforePush = copyVariableIndices();
 	m_context.pushSolver();
 	_op.condition().accept(*this);
-
-	if (isRootFunction() && !isInsideLoop())
-		addVerificationTarget(
-			VerificationTargetType::ConstantCondition,
-			expr(_op.condition()),
-			&_op.condition()
-		);
+	checkIfConditionIsConstant(_op.condition());
 	m_context.popSolver();
 	resetVariableIndices(std::move(indicesBeforePush));
 
@@ -690,12 +678,7 @@ void BMC::visitRequire(FunctionCall const& _funCall)
 	auto const& args = _funCall.arguments();
 	solAssert(args.size() >= 1, "");
 	solAssert(args.front()->annotation().type->category() == Type::Category::Bool, "");
-	if (isRootFunction() && !isInsideLoop())
-		addVerificationTarget(
-			VerificationTargetType::ConstantCondition,
-			expr(*args.front()),
-			args.front().get()
-		);
+	checkIfConditionIsConstant(*args.front());
 }
 
 void BMC::visitAddMulMod(FunctionCall const& _funCall)
@@ -933,9 +916,6 @@ void BMC::checkVerificationTarget(BMCVerificationTarget& _target)
 
 	switch (_target.type)
 	{
-		case VerificationTargetType::ConstantCondition:
-			checkConstantCondition(_target);
-			break;
 		case VerificationTargetType::Underflow:
 			checkUnderflow(_target);
 			break;
@@ -951,19 +931,70 @@ void BMC::checkVerificationTarget(BMCVerificationTarget& _target)
 		case VerificationTargetType::Assert:
 			checkAssert(_target);
 			break;
+		case VerificationTargetType::ConstantCondition:
+			solAssert(false, "Checks for constant condition are handled separately");
 		default:
 			solAssert(false, "");
 	}
 }
 
-void BMC::checkConstantCondition(BMCVerificationTarget& _target)
+void BMC::checkIfConditionIsConstant(Expression const& _condition)
 {
-	checkBooleanNotConstant(
-		*_target.expression,
-		_target.constraints,
-		_target.value,
-		_target.callStack
-	);
+	if (
+		!m_settings.targets.has(VerificationTargetType::ConstantCondition) ||
+		(m_currentContract && !shouldEncode(*m_currentContract))
+	)
+		return;
+
+	// We ignore called functions here because they have specific input values.
+	// Also, expressions inside loop can have different values in different iterations.
+	if (!isRootFunction() || isInsideLoop())
+		return;
+
+	// Do not check for const-ness if this is a literal.
+	if (dynamic_cast<Literal const*>(&_condition))
+		return;
+
+	auto [canBeTrue, canBeFalse] = checkBooleanNotConstant(currentPathConditions() && m_context.assertions(), expr(_condition));
+
+	// Report based on the result of the checks
+	if (canBeTrue == CheckResult::ERROR || canBeFalse == CheckResult::ERROR)
+		m_errorReporter.warning(8592_error, _condition.location(), "BMC: Error trying to invoke SMT solver.");
+	else if (canBeTrue == CheckResult::CONFLICTING || canBeFalse == CheckResult::CONFLICTING)
+		m_errorReporter.warning(3356_error, _condition.location(), "BMC: At least two SMT solvers provided conflicting answers. Results might not be sound.");
+	else if (canBeTrue == CheckResult::UNKNOWN || canBeFalse == CheckResult::UNKNOWN)
+	{
+		// Not enough information to make definite claims.
+	}
+	else if (canBeTrue == CheckResult::SATISFIABLE && canBeFalse == CheckResult::SATISFIABLE)
+	{
+		// Condition can be both true and false for some program runs.
+	}
+
+	else if (canBeTrue == CheckResult::UNSATISFIABLE && canBeFalse == CheckResult::UNSATISFIABLE)
+		m_errorReporter.warning(2512_error, _condition.location(), "BMC: Condition unreachable.", SMTEncoder::callStackMessage(m_callStack));
+	else
+	{
+		std::string description;
+		if (canBeFalse == smtutil::CheckResult::UNSATISFIABLE)
+		{
+			smtAssert(canBeTrue == smtutil::CheckResult::SATISFIABLE);
+			description = "BMC: Condition is always true.";
+		}
+		else
+		{
+			smtAssert(canBeTrue == smtutil::CheckResult::UNSATISFIABLE);
+			smtAssert(canBeFalse == smtutil::CheckResult::SATISFIABLE);
+			description = "BMC: Condition is always false.";
+		}
+		m_errorReporter.warning(
+			6838_error,
+			_condition.location(),
+			description,
+			SMTEncoder::callStackMessage(m_callStack)
+		);
+	}
+
 }
 
 void BMC::checkUnderflow(BMCVerificationTarget& _target)
@@ -1068,6 +1099,7 @@ void BMC::addVerificationTarget(
 	Expression const* _expression
 )
 {
+	smtAssert(_type != VerificationTargetType::ConstantCondition, "Checks for constant condition are handled separately");
 	if (!m_settings.targets.has(_type) || (m_currentContract && !shouldAnalyzeVerificationTargetsFor(*m_currentContract)))
 		return;
 
@@ -1081,10 +1113,7 @@ void BMC::addVerificationTarget(
 		m_callStack,
 		modelExpressions()
 	};
-	if (_type == VerificationTargetType::ConstantCondition)
-		checkVerificationTarget(target);
-	else
-		m_verificationTargets.emplace_back(std::move(target));
+	m_verificationTargets.emplace_back(std::move(target));
 }
 
 /// Solving.
@@ -1188,62 +1217,22 @@ void BMC::checkCondition(
 	m_interface->pop();
 }
 
-void BMC::checkBooleanNotConstant(
-	Expression const& _condition,
+BMC::ConstantExpressionCheckResult BMC::checkBooleanNotConstant(
 	smtutil::Expression const& _constraints,
-	smtutil::Expression const& _value,
-	std::vector<SMTEncoder::CallStackEntry> const& _callStack
+	smtutil::Expression const& _condition
 )
 {
-	// Do not check for const-ness if this is a constant.
-	if (dynamic_cast<Literal const*>(&_condition))
-		return;
-
 	m_interface->push();
-	m_interface->addAssertion(_constraints && _value);
+	m_interface->addAssertion(_constraints && _condition);
 	auto positiveResult = checkSatisfiable();
 	m_interface->pop();
 
 	m_interface->push();
-	m_interface->addAssertion(_constraints && !_value);
+	m_interface->addAssertion(_constraints && !_condition);
 	auto negatedResult = checkSatisfiable();
 	m_interface->pop();
 
-	if (positiveResult == smtutil::CheckResult::ERROR || negatedResult == smtutil::CheckResult::ERROR)
-		m_errorReporter.warning(8592_error, _condition.location(), "BMC: Error trying to invoke SMT solver.");
-	else if (positiveResult == smtutil::CheckResult::CONFLICTING || negatedResult == smtutil::CheckResult::CONFLICTING)
-		m_errorReporter.warning(3356_error, _condition.location(), "BMC: At least two SMT solvers provided conflicting answers. Results might not be sound.");
-	else if (positiveResult == smtutil::CheckResult::SATISFIABLE && negatedResult == smtutil::CheckResult::SATISFIABLE)
-	{
-		// everything fine.
-	}
-	else if (positiveResult == smtutil::CheckResult::UNKNOWN || negatedResult == smtutil::CheckResult::UNKNOWN)
-	{
-		// can't do anything.
-	}
-	else if (positiveResult == smtutil::CheckResult::UNSATISFIABLE && negatedResult == smtutil::CheckResult::UNSATISFIABLE)
-		m_errorReporter.warning(2512_error, _condition.location(), "BMC: Condition unreachable.", SMTEncoder::callStackMessage(_callStack));
-	else
-	{
-		std::string description;
-		if (positiveResult == smtutil::CheckResult::SATISFIABLE)
-		{
-			solAssert(negatedResult == smtutil::CheckResult::UNSATISFIABLE, "");
-			description = "BMC: Condition is always true.";
-		}
-		else
-		{
-			solAssert(positiveResult == smtutil::CheckResult::UNSATISFIABLE, "");
-			solAssert(negatedResult == smtutil::CheckResult::SATISFIABLE, "");
-			description = "BMC: Condition is always false.";
-		}
-		m_errorReporter.warning(
-			6838_error,
-			_condition.location(),
-			description,
-			SMTEncoder::callStackMessage(_callStack)
-		);
-	}
+	return {.canBeTrue = positiveResult, .canBeFalse = negatedResult};
 }
 
 std::pair<smtutil::CheckResult, std::vector<std::string>>

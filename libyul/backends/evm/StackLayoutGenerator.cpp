@@ -306,7 +306,7 @@ Stack StackLayoutGenerator::propagateStackThroughOperation(Stack _exitStack, CFG
 		{
 			// *offset == n requires, after popping the topmost slot, a DUP<n+1> to recover it.
 			// So if *offset + 1 is within stack reach, we can pop.
-			if (*offset + 1 < 16)
+			if (*offset + 1 <= 16)
 				stack.pop_back();
 			else
 				break;

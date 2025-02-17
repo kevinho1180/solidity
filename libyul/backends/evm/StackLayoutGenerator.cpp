@@ -304,7 +304,9 @@ Stack StackLayoutGenerator::propagateStackThroughOperation(Stack _exitStack, CFG
 			stack.pop_back();
 		else if (auto offset = util::findOffset(stack | ranges::views::reverse | ranges::views::drop(1), stack.back()))
 		{
-			if (*offset + 2 < 16)
+			// *offset == n requires, after popping the topmost slot, a DUP<n+1> to recover it.
+			// So if *offset + 1 is within stack reach, we can pop.
+			if (*offset + 1 < 16)
 				stack.pop_back();
 			else
 				break;

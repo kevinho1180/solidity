@@ -28,7 +28,9 @@ struct ResultRecorder
 		std::string const& _file,
 		std::string const& _message,
 		std::string const& _actual,
-		std::string const& _desired
+		std::string const& _desired,
+		u256 const& _gasUsed,
+		u256 const& _gasUsedForDeposit
 	)
 	{
 		if (m_outfile)
@@ -36,7 +38,9 @@ struct ResultRecorder
 			std::map<std::string, std::string> const status {
 				{"message", _message},
 				{"actual", _actual},
-				{"desired", _desired}
+				{"desired", _desired},
+				{"gasUsed", _gasUsed.str()},
+				{"gasUsedForDeposit", _gasUsedForDeposit.str()}
 			};
 			m_outputContents[_file].push_back(status);
 		}
@@ -68,7 +72,8 @@ int main(int argc, char** argv)
 		std::cout << filename << std::endl;
 		std::unique_ptr<EVMHost> evmcHost;
 
-		evmcHost = std::make_unique<EVMHost>(langutil::EVMVersion{}, vm);
+		langutil::EVMVersion const evmVersion{};
+		evmcHost = std::make_unique<EVMHost>(evmVersion, vm);
 
 		auto account = [](size_t i) {
 			return h160(h256(u256{"0x1212121212121212121212121212120000000012"} + i * 0x1000), h160::AlignRight);
@@ -113,13 +118,18 @@ int main(int argc, char** argv)
 			{
 				std::cerr << "Unrecognized kind: " << kind << std::endl;
 				hasTestFailure = true;
-				resultRecorder.record(filename, "Unrecognized kind of test", kind, R"("constructor" or "call")");
+				resultRecorder.record(filename, "Unrecognized kind of test", kind, R"("constructor" or "call")", 0, 0);
 				continue;
 			}
 
 			message.gas = 100000000;
 
+			unsigned const refundRatio = evmVersion >= langutil::EVMVersion::london() ? 5 : 2;
 			evmc::Result result = evmcHost->call(message);
+			auto const totalGasUsed = message.gas - result.gas_left;
+			auto const gasRefund = std::min(u256(result.gas_refund), u256(totalGasUsed) / refundRatio);
+			auto const gasUsed = totalGasUsed - gasRefund;
+			auto const gasUsedForDeposit = evmcHost->totalCodeDepositGas();
 
 			auto output = bytes(result.output_data, result.output_data + result.output_size);
 			if (kind == "constructor")
@@ -127,18 +137,18 @@ int main(int argc, char** argv)
 				contractAddress = EVMHost::convertFromEVMC(result.create_address);
 			}
 
-			bool status = (result.status_code == EVMC_SUCCESS);
+			bool status = result.status_code == EVMC_SUCCESS;
 
 			if (kind == "constructor")
 			{
 				if (!status)
 				{
 					std::cerr << "Creation failed." << std::endl;
-					resultRecorder.record(filename, "Creation failed for constructor test.", "", "");
+					resultRecorder.record(filename, "Creation failed for constructor test.", "", "", gasUsed, gasUsedForDeposit);
 					hasTestFailure = true;
 					continue;
 				}
-				resultRecorder.record(filename, "Creation succeeded.", "", "");
+				resultRecorder.record(filename, "Creation succeeded.", "", "", gasUsed, gasUsedForDeposit);
 			}
 			else
 			{
@@ -148,7 +158,7 @@ int main(int argc, char** argv)
 					if (status)
 					{
 						std::cerr << "Expected failure but got success" << std::endl;
-						resultRecorder.record(filename, "Expected test status failure but got success.", "success", expectedStatus);
+						resultRecorder.record(filename, "Expected test status failure but got success.", "success", expectedStatus, gasUsed, gasUsedForDeposit);
 						hasTestFailure = true;
 						continue;
 					}
@@ -158,7 +168,7 @@ int main(int argc, char** argv)
 					if (!status)
 					{
 						std::cerr << "Expected success but got failure" << std::endl;
-						resultRecorder.record(filename, "Expected test status success but got failure.", "failure", expectedStatus);
+						resultRecorder.record(filename, "Expected test status success but got failure.", "failure", expectedStatus, gasUsed, gasUsedForDeposit);
 						hasTestFailure = true;
 						continue;
 					}
@@ -167,11 +177,11 @@ int main(int argc, char** argv)
 				if (output != util::fromHex(expectedOutput))
 				{
 					std::cerr << "Expected " << expectedOutput << " but got " << util::toHex(output) << std::endl;
-					resultRecorder.record(filename, "Expected different output.", util::toHex(output), expectedOutput);
+					resultRecorder.record(filename, "Expected different output.", util::toHex(output), expectedOutput, gasUsed, gasUsedForDeposit);
 					hasTestFailure = true;
 					continue;
 				}
-				resultRecorder.record(filename, "Passed.", util::toHex(output), expectedOutput);
+				resultRecorder.record(filename, "Passed.", util::toHex(output), expectedOutput, gasUsed, gasUsedForDeposit);
 			}
 		}
 		std::cout << "  => " << i << " tests performed." << std::endl;

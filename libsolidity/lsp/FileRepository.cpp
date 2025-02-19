@@ -28,11 +28,8 @@
 #include <range/v3/view/transform.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
+#include <format>
 #include <regex>
-
-#include <boost/algorithm/string/predicate.hpp>
-
-#include <fmt/format.h>
 
 using namespace solidity;
 using namespace solidity::lsp;
@@ -96,7 +93,7 @@ void FileRepository::setSourceByUri(std::string const& _uri, std::string _source
 	// This is needed for uris outside the base path. It can lead to collisions,
 	// but we need to mostly rewrite this in a future version anyway.
 	auto sourceUnitName = uriToSourceUnitName(_uri);
-	lspDebug(fmt::format("FileRepository.setSourceByUri({}): {}", _uri, _source));
+	lspDebug(std::format("FileRepository.setSourceByUri({}): {}", _uri, _source));
 	m_sourceUnitNamesToUri.emplace(sourceUnitName, _uri);
 	m_sourceCodes[sourceUnitName] = std::move(_source);
 }

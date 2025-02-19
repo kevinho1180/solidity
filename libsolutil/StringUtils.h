@@ -27,8 +27,6 @@
 #include <libsolutil/CommonData.h>
 #include <libsolutil/Numeric.h>
 
-#include <fmt/format.h>
-
 #include <algorithm>
 #include <limits>
 #include <locale>

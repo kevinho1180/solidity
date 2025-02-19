@@ -31,7 +31,7 @@
 #include <range/v3/view/drop_last.hpp>
 #include <range/v3/view/reverse.hpp>
 
-#include <fmt/format.h>
+#include <format>
 
 using namespace solidity::langutil;
 using namespace solidity::frontend;
@@ -379,7 +379,7 @@ std::string TypeEnvironmentHelpers::typeToString(Type const& _type) const
 	std::map<TypeConstructor, std::function<std::string(std::vector<Type>)>> formatters{
 		{env.typeSystem().constructor(PrimitiveType::Function), [&](auto const& _args) {
 			solAssert(_args.size() == 2);
-			return fmt::format("{} -> {}", typeToString(_args.front()), typeToString(_args.back()));
+			return std::format("{} -> {}", typeToString(_args.front()), typeToString(_args.back()));
 		}},
 		{env.typeSystem().constructor(PrimitiveType::Unit), [&](auto const& _args) {
 			solAssert(_args.size() == 0);

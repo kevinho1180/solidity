@@ -41,13 +41,12 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
-#include <fmt/format.h>
-
 #include <range/v3/algorithm/count_if.hpp>
 #include <range/v3/view/drop_exactly.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/zip.hpp>
 
+#include <format>
 #include <memory>
 #include <vector>
 
@@ -1641,7 +1640,7 @@ bool TypeChecker::visit(UnaryOperation const& _operation)
 	}
 	else
 	{
-		std::string description = fmt::format(
+		std::string description = std::format(
 			"Built-in unary operator {} cannot be applied to type {}.",
 			TokenTraits::friendlyName(op),
 			operandType->humanReadableName()
@@ -1709,7 +1708,7 @@ void TypeChecker::endVisit(BinaryOperation const& _operation)
 	}
 	else
 	{
-		std::string description = fmt::format(
+		std::string description = std::format(
 			"Built-in binary operator {} cannot be applied to types {} and {}.",
 			TokenTraits::friendlyName(_operation.getOperator()),
 			leftType->humanReadableName(),
@@ -1750,7 +1749,7 @@ void TypeChecker::endVisit(BinaryOperation const& _operation)
 			m_errorReporter.typeError(
 				5653_error,
 				_operation.location(),
-				fmt::format(
+				std::format(
 					"The type of the second operand of this user-defined binary operator {} "
 					"does not match the type of the first operand, which is {}.",
 					TokenTraits::friendlyName(_operation.getOperator()),
@@ -1816,7 +1815,7 @@ void TypeChecker::endVisit(BinaryOperation const& _operation)
 			m_errorReporter.warning(
 				3149_error,
 				_operation.location(),
-				fmt::format(
+				std::format(
 					"The result type of the {} operation is equal to the type of the first operand ({}) "
 					"ignoring the (larger) type of the second operand ({}) which might be unexpected. "
 					"Silence this warning by either converting the first or the second operand to the type of the other.",
@@ -3859,7 +3858,7 @@ void TypeChecker::endVisit(UsingForDirective const& _usingFor)
 					"Function defined here:",
 					functionDefinition.location()
 				),
-				fmt::format(
+				std::format(
 					"The function \"{}\" does not have any parameters, and therefore cannot be attached to the type \"{}\".",
 					joinHumanReadable(path->path(), "."),
 					normalizedType ? normalizedType->toString(true /* withoutDataLocation */) : "*"
@@ -3879,7 +3878,7 @@ void TypeChecker::endVisit(UsingForDirective const& _usingFor)
 					"Function defined here:",
 					functionDefinition.location()
 				),
-				fmt::format(
+				std::format(
 					"Function \"{}\" is private and therefore cannot be attached"
 					" to a type outside of the library where it is defined.",
 					joinHumanReadable(path->path(), ".")
@@ -3900,7 +3899,7 @@ void TypeChecker::endVisit(UsingForDirective const& _usingFor)
 					"Function defined here:",
 					functionDefinition.location()
 				),
-				fmt::format(
+				std::format(
 					"The function \"{}\" cannot be attached to the type \"{}\" because the type cannot "
 					"be implicitly converted to the first argument of the function (\"{}\"){}",
 					joinHumanReadable(path->path(), "."),
@@ -3953,11 +3952,11 @@ void TypeChecker::endVisit(UsingForDirective const& _usingFor)
 
 			std::optional<std::string> wrongParametersMessage;
 			if (isBinaryOnlyOperator && (parameterCount != 2 || !identicalFirstTwoParameters))
-				wrongParametersMessage = fmt::format("two parameters of type {} and the same data location", usingForType->canonicalName());
+				wrongParametersMessage = std::format("two parameters of type {} and the same data location", usingForType->canonicalName());
 			else if (isUnaryOnlyOperator && (parameterCount != 1 || !firstParameterMatchesUsingFor))
-				wrongParametersMessage = fmt::format("exactly one parameter of type {}", usingForType->canonicalName());
+				wrongParametersMessage = std::format("exactly one parameter of type {}", usingForType->canonicalName());
 			else if (parameterCount >= 3 || !firstParameterMatchesUsingFor || !identicalFirstTwoParameters)
-				wrongParametersMessage = fmt::format("one or two parameters of type {} and the same data location", usingForType->canonicalName());
+				wrongParametersMessage = std::format("one or two parameters of type {} and the same data location", usingForType->canonicalName());
 
 			if (wrongParametersMessage.has_value())
 				m_errorReporter.typeError(
@@ -3967,7 +3966,7 @@ void TypeChecker::endVisit(UsingForDirective const& _usingFor)
 						"Function was used to implement an operator here:",
 						path->location()
 					),
-					fmt::format(
+					std::format(
 						"Wrong parameters in operator definition. "
 						"The function \"{}\" needs to have {} to be used for the operator {}.",
 						joinHumanReadable(path->path(), "."),
@@ -4002,7 +4001,7 @@ void TypeChecker::endVisit(UsingForDirective const& _usingFor)
 						"Function was used to implement an operator here:",
 						path->location()
 					),
-					fmt::format(
+					std::format(
 						"Wrong return parameters in operator definition. "
 						"The function \"{}\" needs to return {} to be used for the operator {}.",
 						joinHumanReadable(path->path(), "."),
@@ -4036,7 +4035,7 @@ void TypeChecker::endVisit(UsingForDirective const& _usingFor)
 						4705_error,
 						path->location(),
 						secondaryLocation,
-						fmt::format(
+						std::format(
 							"User-defined {} operator {} has more than one definition matching the operand type visible in the current scope.",
 							parameterCount == 1 ? "unary" : "binary",
 							TokenTraits::friendlyName(operator_.value())

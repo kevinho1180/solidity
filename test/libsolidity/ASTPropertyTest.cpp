@@ -33,6 +33,7 @@
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/split.hpp>
 
+#include <format>
 #include <queue>
 
 using namespace solidity::util;
@@ -162,7 +163,7 @@ void ASTPropertyTest::extractTestsFromAST(Json const& _astJson)
 					if (propertyNode->is_string())
 						m_tests[testId].obtainedValue = propertyNode->get<std::string>();
 					else if  (propertyNode->is_boolean())
-						m_tests[testId].obtainedValue = fmt::format("{}", propertyNode->get<bool>());
+						m_tests[testId].obtainedValue = std::format("{}", propertyNode->get<bool>());
 					else
 						soltestAssert(false);
 				}

@@ -24,7 +24,7 @@
 
 #include <liblangutil/Exceptions.h>
 
-#include <fmt/format.h>
+#include <format>
 
 using namespace solidity::langutil;
 using namespace solidity::lsp;
@@ -66,11 +66,11 @@ std::pair<std::string, LineColumn> HandlerBase::extractSourceUnitNameAndLineColu
 	if (!lineColumn)
 		BOOST_THROW_EXCEPTION(
 			RequestError(ErrorCode::RequestFailed) <<
-			errinfo_comment(fmt::format(
-				"Unknown position {line}:{column} in file: {file}",
-				fmt::arg("line", lineColumn.value().line),
-				fmt::arg("column", lineColumn.value().column),
-				fmt::arg("file", sourceUnitName)
+			errinfo_comment(std::format(
+				"Unknown position {}:{} in file: {}",
+				lineColumn.value().line,
+				lineColumn.value().column,
+				sourceUnitName
 			))
 		);
 

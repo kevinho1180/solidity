@@ -35,6 +35,7 @@
 #include <boost/algorithm/string.hpp>
 
 #include <algorithm>
+#include <format>
 #include <regex>
 
 using namespace std::string_literals;
@@ -440,7 +441,7 @@ Statement Parser::parseStatement()
 				{
 					fatalParserError(
 						6272_error,
-						fmt::format(
+						std::format(
 							"Cannot assign to builtin function \"{}\".",
 							m_dialect.builtin(_builtin.handle).name
 						)

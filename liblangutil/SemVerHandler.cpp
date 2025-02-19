@@ -25,9 +25,9 @@
 
 #include <liblangutil/Exceptions.h>
 
+#include <format>
 #include <functional>
 #include <limits>
-#include <fmt/format.h>
 
 using namespace std::string_literals;
 using namespace solidity;
@@ -282,7 +282,7 @@ unsigned SemVerMatchExpressionParser::parseVersionPart()
 		solThrow(SemVerError, "Expected version number but reached end of pragma.");
 	else
 		solThrow(
-			SemVerError, fmt::format(
+			SemVerError, std::format(
 				"Expected the start of a version number but instead found character '{}'. "
 				"Version number is invalid or the pragma is not terminated with a semicolon.",
 				c

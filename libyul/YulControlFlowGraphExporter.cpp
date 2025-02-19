@@ -26,6 +26,8 @@
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/transform.hpp>
 
+#include <format>
+
 using namespace solidity;
 using namespace solidity::langutil;
 using namespace solidity::util;
@@ -78,7 +80,7 @@ Json YulControlFlowGraphExporter::exportFunction(SSACFG const& _cfg, SSACFGLiven
 	Json functionJson = Json::object();
 	functionJson["type"] = "Function";
 	functionJson["entry"] = "Block" + std::to_string(_cfg.entry.value);
-	static auto constexpr argsTransform = [](auto const& _arg) { return fmt::format("v{}", std::get<1>(_arg).value); };
+	static auto constexpr argsTransform = [](auto const& _arg) { return std::format("v{}", std::get<1>(_arg).value); };
 	functionJson["arguments"] = _cfg.arguments | ranges::views::transform(argsTransform) | ranges::to<std::vector>;
 	functionJson["numReturns"] = _cfg.returns.size();
 	functionJson["blocks"] = exportBlock(_cfg, _cfg.entry, _liveness);

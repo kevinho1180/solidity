@@ -56,6 +56,7 @@
 #include <libsolutil/JSON.h>
 
 #include <algorithm>
+#include <format>
 #include <fstream>
 #include <memory>
 
@@ -650,7 +651,7 @@ void CommandLineInterface::readInputFiles()
 			if (!m_options.input.ignoreMissingFiles)
 				solThrow(CommandLineValidationError, '"' + infile.string() + "\" is not found.");
 			else
-				report(Error::Severity::Info, fmt::format("\"{}\" is not found. Skipping.", infile.string()));
+				report(Error::Severity::Info, std::format("\"{}\" is not found. Skipping.", infile.string()));
 
 			continue;
 		}
@@ -660,7 +661,7 @@ void CommandLineInterface::readInputFiles()
 			if (!m_options.input.ignoreMissingFiles)
 				solThrow(CommandLineValidationError, '"' + infile.string() + "\" is not a valid file.");
 			else
-				report(Error::Severity::Info, fmt::format("\"{}\" is not a valid file. Skipping.", infile.string()));
+				report(Error::Severity::Info, std::format("\"{}\" is not a valid file. Skipping.", infile.string()));
 
 			continue;
 		}
@@ -1226,7 +1227,7 @@ void CommandLineInterface::link()
 			else
 				report(
 					Error::Severity::Warning,
-					fmt::format("Reference \"{}\" in file \"{}\" still unresolved.", foundPlaceholder, src.first)
+					std::format("Reference \"{}\" in file \"{}\" still unresolved.", foundPlaceholder, src.first)
 				);
 			it += placeholderSize;
 		}

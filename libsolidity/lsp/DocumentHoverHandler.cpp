@@ -19,8 +19,6 @@
 #include <libsolidity/lsp/DocumentHoverHandler.h>
 #include <libsolidity/lsp/Utils.h>
 
-#include <fmt/format.h>
-
 namespace solidity::lsp
 {
 using namespace solidity::lsp;

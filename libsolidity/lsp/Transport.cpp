@@ -23,12 +23,10 @@
 #include <libsolutil/CommonIO.h>
 #include <liblangutil/Exceptions.h>
 
-#include <fmt/format.h>
-
 #include <boost/algorithm/string.hpp>
 
+#include <format>
 #include <iostream>
-#include <sstream>
 #include <string>
 
 
@@ -137,7 +135,7 @@ void Transport::send(Json _json, MessageID _id)
 	// Trailing CRLF only for easier readability.
 	std::string const jsonString = solidity::util::jsonCompactPrint(_json);
 
-	writeBytes(fmt::format("Content-Length: {}\r\n\r\n", jsonString.size()));
+	writeBytes(std::format("Content-Length: {}\r\n\r\n", jsonString.size()));
 	writeBytes(jsonString);
 	flushOutput();
 }
@@ -206,13 +204,13 @@ std::string StdioTransport::getline()
 {
 	std::string line;
 	std::getline(std::cin, line);
-	lspDebug(fmt::format("Received: {}", line));
+	lspDebug(std::format("Received: {}", line));
 	return line;
 }
 
 void StdioTransport::writeBytes(std::string_view _data)
 {
-	lspDebug(fmt::format("Sending: {}", _data));
+	lspDebug(std::format("Sending: {}", _data));
 	auto const bytesWritten = fwrite(_data.data(), 1, _data.size(), stdout);
 	solAssert(bytesWritten == _data.size());
 }

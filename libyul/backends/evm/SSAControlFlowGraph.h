@@ -30,6 +30,7 @@
 #include <libsolutil/Numeric.h>
 
 #include <range/v3/view/map.hpp>
+
 #include <deque>
 #include <functional>
 #include <list>
@@ -212,13 +213,7 @@ public:
 		return it->second;
 	}
 
-	size_t phiArgumentIndex(BlockId const _source, BlockId const _target) const
-	{
-		auto const& targetBlock = block(_target);
-		auto idx = util::findOffset(targetBlock.entries, _source);
-		yulAssert(idx, fmt::format("Target block {} not found as entry in one of the exits of the current block {}.", _target.value, _source.value));
-		return *idx;
-	}
+	size_t phiArgumentIndex(BlockId const _source, BlockId const _target) const;
 
 	std::string toDot(
 		bool _includeDiGraphDefinition=true,

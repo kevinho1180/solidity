@@ -30,7 +30,7 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/range/conversion.hpp>
 
-#include <fmt/format.h>
+#include <format>
 
 using namespace solidity::langutil;
 using namespace solidity::yul;
@@ -1098,7 +1098,7 @@ void CommandLineParser::processArgs()
 			if (!optionValue.defaulted() && !supportedByEvmAsmJsonImport.count(optionName))
 				solThrow(
 					CommandLineValidationError,
-					fmt::format(
+					std::format(
 						"Option --{} is not supported with --{}.",
 						optionName,
 						g_strImportEvmAssemblerJson
@@ -1578,7 +1578,7 @@ void CommandLineParser::parseCombinedJsonOption()
 			if (m_options.compiler.combinedJsonRequests.value().*invalidOption)
 				solThrow(
 					CommandLineValidationError,
-					fmt::format(
+					std::format(
 						"The --{} {} output is not available in EVM assembly import mode.",
 						g_strCombinedJson,
 						CombinedJsonRequests::componentName(invalidOption)

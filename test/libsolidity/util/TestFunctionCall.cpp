@@ -21,10 +21,10 @@
 
 #include <boost/algorithm/string.hpp>
 
-#include <fmt/format.h>
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 
+#include <format>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -348,12 +348,12 @@ std::string formatGasDiff(std::optional<u256> const& _gasUsed, std::optional<u25
 	s256 difference = static_cast<s256>(*_gasUsed) - static_cast<s256>(*_reference);
 
 	if (*_reference == 0)
-		return fmt::format("{}", difference.str());
+		return std::format("{}", difference.str());
 
 	int percent = static_cast<int>(
 		100.0 * (static_cast<double>(difference) / static_cast<double>(*_reference))
 	);
-	return fmt::format("{} ({:+}%)", difference.str(), percent);
+	return std::format("{} ({:+}%)", difference.str(), percent);
 }
 
 // TODO: Convert this into a generic helper for getting optional form a map

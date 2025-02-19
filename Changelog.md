@@ -30,6 +30,7 @@ Bugfixes:
 
 Build system:
  * Linux release builds are fully static again and no longer depend on ``glibc``.
+ * Remove dependency to fmtlib in favor of the STL format implementation.
  * Switch from C++17 to C++20 as the target standard.
 
 ### 0.8.28 (2024-10-09)

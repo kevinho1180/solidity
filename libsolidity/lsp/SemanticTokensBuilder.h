@@ -19,8 +19,6 @@
 #include <libsolidity/ast/ASTVisitor.h>
 #include <libsolutil/JSON.h>
 
-#include <fmt/format.h>
-
 namespace solidity::langutil
 {
 class CharStream;

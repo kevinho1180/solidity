@@ -23,13 +23,13 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include <fmt/format.h>
-
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/transform.hpp>
+
+#include <format>
 
 using namespace solidity::util;
 
@@ -883,7 +883,7 @@ BOOST_AUTO_TEST_CASE(check_dominance)
 			bool iDominatesJ = dominatorFinder.dominates(i, j);
 			BOOST_CHECK_MESSAGE(
 				iDominatesJ == expectedDominanceTable[i][j],
-				fmt::format(
+				std::format(
 					"Vertex: {} expected to {} dominate vertex {} but returned: {}\n",
 					i,
 					(iDominatesJ ? "" : "not"),

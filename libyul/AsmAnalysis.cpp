@@ -39,8 +39,7 @@
 
 #include <boost/algorithm/string.hpp>
 
-#include <fmt/format.h>
-
+#include <format>
 #include <functional>
 
 using namespace std::string_literals;
@@ -385,7 +384,7 @@ size_t AsmAnalyzer::operator()(FunctionCall const& _funCall)
 			m_errorReporter.declarationError(
 				4619_error,
 				nativeLocationOf(_funCall.functionName),
-				fmt::format("Function \"{}\" not found.", resolveFunctionName(_funCall.functionName, m_dialect))
+				std::format("Function \"{}\" not found.", resolveFunctionName(_funCall.functionName, m_dialect))
 			);
 		yulAssert(!watcher.ok(), "Expected a reported error.");
 	}
@@ -394,7 +393,7 @@ size_t AsmAnalyzer::operator()(FunctionCall const& _funCall)
 		m_errorReporter.typeError(
 			7000_error,
 			nativeLocationOf(_funCall.functionName),
-			fmt::format(
+			std::format(
 				"Function \"{}\" expects {} arguments but got {}.",
 				resolveFunctionName(_funCall.functionName, m_dialect),
 				*numParameters,
@@ -456,7 +455,7 @@ size_t AsmAnalyzer::operator()(FunctionCall const& _funCall)
 						m_errorReporter.typeError(
 							2186_error,
 							nativeLocationOf(arg),
-							fmt::format("Name required but path given as \"{}\" argument.", functionName)
+							std::format("Name required but path given as \"{}\" argument.", functionName)
 						);
 
 					if (!m_objectStructure.topLevelSubObjectNames().count(formattedLiteral))
@@ -709,9 +708,9 @@ bool AsmAnalyzer::validateInstructions(std::string_view _instructionIdentifier, 
 			m_errorReporter.declarationError(
 				7223_error,
 				_location,
-				fmt::format(
+				std::format(
 					"Builtin function \"{}\" is only available in EOF.",
-					fmt::arg("function", _instructionIdentifier)
+					_instructionIdentifier
 				)
 			);
 			return true;
@@ -750,11 +749,11 @@ bool AsmAnalyzer::validateInstructions(evmasm::Instruction _instr, SourceLocatio
 		m_errorReporter.typeError(
 			_errorId,
 			_location,
-			fmt::format(
-				"The \"{instruction}\" instruction is {kind} VMs (you are currently compiling for \"{version}\").",
-				fmt::arg("instruction", boost::to_lower_copy(instructionInfo(_instr, m_evmVersion).name)),
-				fmt::arg("kind", vmKindMessage),
-				fmt::arg("version", m_evmVersion.name())
+			std::format(
+				R"(The "{}" instruction is {} VMs (you are currently compiling for "{}").)",
+				boost::to_lower_copy(instructionInfo(_instr, m_evmVersion).name),
+				vmKindMessage,
+				m_evmVersion.name()
 			)
 		);
 	};
@@ -809,9 +808,9 @@ bool AsmAnalyzer::validateInstructions(evmasm::Instruction _instr, SourceLocatio
 		m_errorReporter.typeError(
 			4328_error,
 			_location,
-			fmt::format(
+			std::format(
 				"The \"{}\" instruction is only available in EOF.",
-				fmt::arg("instruction", boost::to_lower_copy(instructionInfo(_instr, m_evmVersion).name))
+				boost::to_lower_copy(instructionInfo(_instr, m_evmVersion).name)
 			)
 		);
 	}
@@ -837,10 +836,10 @@ bool AsmAnalyzer::validateInstructions(evmasm::Instruction _instr, SourceLocatio
 		m_errorReporter.typeError(
 			9132_error,
 			_location,
-			fmt::format(
-				"The \"{instruction}\" instruction is {kind} VMs (you are currently compiling to EOF).",
-				fmt::arg("instruction", boost::to_lower_copy(instructionInfo(_instr, m_evmVersion).name)),
-				fmt::arg("kind", "only available in legacy bytecode")
+			std::format(
+				"The \"{}\" instruction is {} VMs (you are currently compiling to EOF).",
+				boost::to_lower_copy(instructionInfo(_instr, m_evmVersion).name),
+				"only available in legacy bytecode"
 			)
 		);
 	}
@@ -873,9 +872,9 @@ void AsmAnalyzer::validateObjectStructure(langutil::SourceLocation _astRootLocat
 			m_errorReporter.syntaxError(
 				9822_error,
 				_astRootLocation,
-				fmt::format(
-					"The object name \"{objectName}\" is invalid in EOF context. Object names must not contain 'dot' character.",
-					fmt::arg("objectName", m_objectStructure.objectName)
+				std::format(
+					"The object name \"{}\" is invalid in EOF context. Object names must not contain 'dot' character.",
+					m_objectStructure.objectName
 				)
 			);
 		else if (m_objectStructure.topLevelSubObjectNames().size() > 256)
@@ -883,9 +882,9 @@ void AsmAnalyzer::validateObjectStructure(langutil::SourceLocation _astRootLocat
 			m_errorReporter.syntaxError(
 				1305_error,
 				_astRootLocation,
-				fmt::format(
-					"Too many subobjects in \"{objectName}\". At most 256 subobjects allowed when compiling to EOF",
-					fmt::arg("objectName", m_objectStructure.objectName)
+				std::format(
+					"Too many subobjects in \"{}\". At most 256 subobjects allowed when compiling to EOF",
+					m_objectStructure.objectName
 				)
 			);
 		}

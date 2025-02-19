@@ -91,8 +91,6 @@
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/map.hpp>
 
-#include <fmt/format.h>
-
 #include <utility>
 #include <map>
 #include <limits>

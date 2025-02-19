@@ -37,6 +37,7 @@
 #include <boost/test/data/test_case.hpp>
 #include <boost/test/unit_test.hpp>
 
+#include <format>
 #include <memory>
 #include <optional>
 #include <string>
@@ -833,7 +834,7 @@ BOOST_DATA_TEST_CASE(customSourceLocations_scanner_errors_outside_string_lits_ar
 {
 	ErrorList errorList;
 	ErrorReporter reporter(errorList);
-	auto const sourceText = fmt::format(R"(
+	auto const sourceText = std::format(R"(
 		/// @src 0:111:222 {}
 		/// @src 1:222:333
 		{{}}

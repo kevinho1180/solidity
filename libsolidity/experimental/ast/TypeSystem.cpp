@@ -31,8 +31,7 @@
 #include <range/v3/view/reverse.hpp>
 #include <range/v3/view/zip.hpp>
 
-#include <fmt/format.h>
-
+#include <format>
 #include <unordered_map>
 
 using namespace solidity;
@@ -319,7 +318,7 @@ experimental::Type TypeSystem::type(TypeConstructor _constructor, std::vector<Ty
 	auto const& info = m_typeConstructors.at(_constructor.m_index);
 	solAssert(
 		info.arguments() == _arguments.size(),
-		fmt::format("Type constructor '{}' accepts {} type arguments (got {}).", constructorInfo(_constructor).name, info.arguments(), _arguments.size())
+		std::format("Type constructor '{}' accepts {} type arguments (got {}).", constructorInfo(_constructor).name, info.arguments(), _arguments.size())
 	);
 	return TypeConstant{_constructor, _arguments};
 }

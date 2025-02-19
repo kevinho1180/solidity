@@ -26,6 +26,7 @@
 
 #include <boost/algorithm/string/trim.hpp>
 
+#include <format>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -135,16 +136,16 @@ std::optional<std::string> tryFormatPowerOfTwo(bigint const& _value)
 
 	// 0x100 yields 2**8 (N is 1 and redundant)
 	if (prefix == 1)
-		return {fmt::format("2**{}", i * 8)};
+		return {std::format("2**{}", i * 8)};
 	else if ((prefix & (prefix - 1)) == 0)
 	{
 		int j = 0;
 		for (; (prefix & 0x1) == 0; prefix >>= 1)
 			j++;
-		return {fmt::format("2**{}", i * 8 + j)};
+		return {std::format("2**{}", i * 8 + j)};
 	}
 	else
-		return {fmt::format(
+		return {std::format(
 			"{} * 2**{}",
 			toHex(toCompactBigEndian(prefix), HexPrefix::Add, HexCase::Mixed),
 			i * 8
@@ -182,7 +183,7 @@ std::string solidity::util::formatNumberReadable(bigint const& _value, bool _use
 		size_t const finalChars = 4;
 		size_t numSkipped = len - initialChars - finalChars;
 
-		return fmt::format(
+		return std::format(
 			"{}{}...{{+{} more}}...{}",
 			sign,
 			str.substr(0, initialChars),

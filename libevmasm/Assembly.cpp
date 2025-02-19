@@ -36,13 +36,12 @@
 #include <libsolutil/JSON.h>
 #include <libsolutil/StringUtils.h>
 
-#include <fmt/format.h>
-
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/view/drop_exactly.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/map.hpp>
 
+#include <format>
 #include <fstream>
 #include <limits>
 #include <iterator>
@@ -114,7 +113,7 @@ AssemblyItem Assembly::createAssemblyItemFromJSON(Json const& _json, std::vector
 		solRequire(
 			validMembers.count(member),
 			AssemblyImportException,
-			fmt::format(
+			std::format(
 				"Unknown member '{}'. Valid members are: {}.",
 				member,
 				solidity::util::joinHumanReadable(validMembers, ", ")
@@ -652,7 +651,7 @@ std::pair<std::shared_ptr<Assembly>, std::vector<std::string>> Assembly::fromJSO
 			solRequire(
 				ranges::max(subAssemblies | ranges::views::keys) == subAssemblies.size() - 1,
 				AssemblyImportException,
-				fmt::format(
+				std::format(
 					"Invalid subassembly indices in '.data'. Not all numbers between 0 and {} are present.",
 					subAssemblies.size() - 1
 				)

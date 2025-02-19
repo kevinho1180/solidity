@@ -28,9 +28,9 @@
 #include <libsolutil/FunctionSelector.h>
 #include <liblangutil/ErrorReporter.h>
 
-#include <fmt/format.h>
-
 #include <range/v3/view/reverse.hpp>
+
+#include <format>
 
 using namespace solidity;
 using namespace solidity::langutil;
@@ -375,7 +375,7 @@ void ContractLevelChecker::checkBaseConstructorArguments(ContractDefinition cons
 							"Base constructor parameters:",
 							baseConstructor->parameterList().location()
 						),
-						fmt::format(
+						std::format(
 							"No arguments passed to the base constructor. "
 							"Specify the arguments or mark \"{}\" as abstract.",
 							*_contract.annotation().canonicalName

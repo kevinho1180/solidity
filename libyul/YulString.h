@@ -21,8 +21,6 @@
 
 #pragma once
 
-#include <fmt/format.h>
-
 #include <unordered_map>
 #include <memory>
 #include <vector>

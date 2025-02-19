@@ -41,10 +41,9 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
+#include <format>
 #include <ostream>
 #include <string>
-
-#include <fmt/format.h>
 
 using namespace std::string_literals;
 using namespace std::placeholders;
@@ -248,7 +247,7 @@ void LanguageServer::compile()
 	if (m_fileLoadStrategy == FileLoadStrategy::ProjectDirectory)
 		for (auto const& projectFile: allSolidityFilesFromProject())
 		{
-			lspDebug(fmt::format("adding project file: {}", projectFile.generic_string()));
+			lspDebug(std::format("adding project file: {}", projectFile.generic_string()));
 			m_fileRepository.setSourceByUri(
 				m_fileRepository.sourceUnitNameToUri(projectFile.generic_string()),
 				util::readFileAsString(projectFile)
@@ -345,7 +344,7 @@ bool LanguageServer::run()
 				std::string const methodName = (*jsonMessage)["method"].get<std::string>();
 				if ((*jsonMessage).contains("id"))
 					id = (*jsonMessage)["id"];
-				lspDebug(fmt::format("received method call: {}", methodName));
+				lspDebug(std::format("received method call: {}", methodName));
 
 				if (auto handler = util::valueOrDefault(m_handlers, methodName))
 					handler(id, (*jsonMessage)["params"]);

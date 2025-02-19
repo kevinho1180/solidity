@@ -36,6 +36,8 @@
 
 #include <range/v3/view/transform.hpp>
 
+#include <format>
+
 using namespace solidity;
 using namespace solidity::frontend;
 using namespace solidity::frontend::experimental;
@@ -726,7 +728,7 @@ bool TypeInference::visit(TypeClassInstantiation const& _typeClassInstantiation)
 			m_errorReporter.typeError(
 				7428_error,
 				_typeClassInstantiation.location(),
-				fmt::format(
+				std::format(
 					"Instantiation function '{}' does not match the declaration in the type class ({} != {}).",
 					name,
 					TypeEnvironmentHelpers{*m_env}.typeToString(instanceFunctionType),
@@ -763,7 +765,7 @@ experimental::Type TypeInference::memberType(Type _type, std::string _memberName
 			return polymorphicInstance(typeMember->type);
 		else
 		{
-			m_errorReporter.typeError(5755_error, _location, fmt::format("Member {} not found in type {}.", _memberName, TypeEnvironmentHelpers{*m_env}.typeToString(_type)));
+			m_errorReporter.typeError(5755_error, _location, std::format("Member {} not found in type {}.", _memberName, TypeEnvironmentHelpers{*m_env}.typeToString(_type)));
 			return m_typeSystem.freshTypeVariable({});
 		}
 	}
@@ -829,7 +831,7 @@ bool TypeInference::visit(TypeDefinition const& _typeDefinition)
 
 	TypeConstructor constructor = typeConstructor(&_typeDefinition);
 	auto [members, newlyInserted] = annotation().members.emplace(constructor, std::map<std::string, TypeMember>{});
-	solAssert(newlyInserted, fmt::format("Members of type '{}' are already defined.", m_typeSystem.constructorInfo(constructor).name));
+	solAssert(newlyInserted, std::format("Members of type '{}' are already defined.", m_typeSystem.constructorInfo(constructor).name));
 	if (underlyingType)
 	{
 		// Undeclared type variables are not allowed in type definitions and we fixed all the declared ones.
@@ -1174,7 +1176,7 @@ void TypeInference::unify(Type _a, Type _b, langutil::SourceLocation _location)
 				m_errorReporter.typeError(
 					8456_error,
 					_location,
-					fmt::format(
+					std::format(
 						"Cannot unify {} and {}.",
 						envHelper.typeToString(_typeMismatch.a),
 						envHelper.typeToString(_typeMismatch.b)
@@ -1182,7 +1184,7 @@ void TypeInference::unify(Type _a, Type _b, langutil::SourceLocation _location)
 				);
 			},
 			[&](TypeEnvironment::SortMismatch _sortMismatch) {
-				m_errorReporter.typeError(3111_error, _location, fmt::format(
+				m_errorReporter.typeError(3111_error, _location, std::format(
 					"{} does not have sort {}",
 					envHelper.typeToString(_sortMismatch.type),
 					TypeSystemHelpers{m_typeSystem}.sortToString(_sortMismatch.sort)
@@ -1192,7 +1194,7 @@ void TypeInference::unify(Type _a, Type _b, langutil::SourceLocation _location)
 				m_errorReporter.typeError(
 					6460_error,
 					_location,
-					fmt::format(
+					std::format(
 						"Recursive unification: {} occurs in {}.",
 						envHelper.typeToString(_recursiveUnification.var),
 						envHelper.typeToString(_recursiveUnification.type)

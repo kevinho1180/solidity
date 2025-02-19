@@ -21,7 +21,7 @@
 #include <liblangutil/CharStream.h>
 #include <liblangutil/SourceLocation.h>
 
-#include <fmt/format.h>
+#include <format>
 
 using namespace solidity::langutil;
 using namespace solidity::frontend;
@@ -49,7 +49,7 @@ std::optional<SemanticTokenType> semanticTokenTypeForType(frontend::Type const* 
 	case frontend::Type::Category::Struct: return SemanticTokenType::Struct;
 	case frontend::Type::Category::Contract: return SemanticTokenType::Class;
 	default:
-		lspDebug(fmt::format("semanticTokenTypeForType: unknown category: {}", static_cast<unsigned>(_type->category())));
+		lspDebug(std::format("semanticTokenTypeForType: unknown category: {}", static_cast<unsigned>(_type->category())));
 		return SemanticTokenType::Type;
 	}
 }
@@ -118,7 +118,7 @@ void SemanticTokensBuilder::encode(
 	auto const [line, startChar] = m_charStream->translatePositionToLineColumn(_sourceLocation.start);
 	auto const length = _sourceLocation.end - _sourceLocation.start;
 
-	lspDebug(fmt::format("encode [{}:{}..{}] {}", line, startChar, length, static_cast<int>(_tokenType)));
+	lspDebug(std::format("encode [{}:{}..{}] {}", line, startChar, length, static_cast<int>(_tokenType)));
 
 	m_encodedTokens.emplace_back(line - m_lastLine);
 	if (line == m_lastLine)
@@ -194,7 +194,7 @@ void SemanticTokensBuilder::endVisit(frontend::StructuredDocumentation const& _d
 
 void SemanticTokensBuilder::endVisit(frontend::Identifier const& _identifier)
 {
-	//lspDebug(fmt::format("Identifier: {}, {}..{} cat={}", _identifier.name(), _identifier.location().start, _identifier.location().end, _identifier.annotation().type->category()));
+	//lspDebug(std::format("Identifier: {}, {}..{} cat={}", _identifier.name(), _identifier.location().start, _identifier.location().end, _identifier.annotation().type->category()));
 
 	SemanticTokenModifiers modifiers = SemanticTokenModifiers::None;
 	if (_identifier.annotation().isConstant.set() && *_identifier.annotation().isConstant)
@@ -208,9 +208,9 @@ void SemanticTokensBuilder::endVisit(frontend::Identifier const& _identifier)
 
 void SemanticTokensBuilder::endVisit(frontend::IdentifierPath const& _node)
 {
-	lspDebug(fmt::format("IdentifierPath: identifier path [{}..{}]", _node.location().start, _node.location().end));
+	lspDebug(std::format("IdentifierPath: identifier path [{}..{}]", _node.location().start, _node.location().end));
 	for (size_t i = 0; i < _node.path().size(); ++i)
-		lspDebug(fmt::format("  [{}]: {}", i, _node.path().at(i)));
+		lspDebug(std::format("  [{}]: {}", i, _node.path().at(i)));
 	if (dynamic_cast<EnumDefinition const*>(_node.annotation().referencedDeclaration))
 		encode(_node.location(), SemanticTokenType::EnumMember);
 	else
@@ -219,7 +219,7 @@ void SemanticTokensBuilder::endVisit(frontend::IdentifierPath const& _node)
 
 bool SemanticTokensBuilder::visit(frontend::MemberAccess const& _node)
 {
-	lspDebug(fmt::format("[{}..{}] MemberAccess({}): {}", _node.location().start, _node.location().end, _node.annotation().referencedDeclaration ?  _node.annotation().referencedDeclaration->name() : "?", _node.memberName()));
+	lspDebug(std::format("[{}..{}] MemberAccess({}): {}", _node.location().start, _node.location().end, _node.annotation().referencedDeclaration ?  _node.annotation().referencedDeclaration->name() : "?", _node.memberName()));
 
 	auto const memberNameLength = static_cast<int>(_node.memberName().size());
 	auto const memberTokenType = semanticTokenTypeForExpression(_node.annotation().type);
@@ -266,7 +266,7 @@ bool SemanticTokensBuilder::visit(frontend::UserDefinedTypeName const& _node)
 
 bool SemanticTokensBuilder::visit(frontend::VariableDeclaration const& _node)
 {
-	lspDebug(fmt::format("VariableDeclaration: {}", _node.name()));
+	lspDebug(std::format("VariableDeclaration: {}", _node.name()));
 
 	if (auto const token = semanticTokenTypeForType(_node.typeName().annotation().type); token.has_value())
 		encode(_node.typeName().location(), *token);

@@ -38,6 +38,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <cctype>
+#include <format>
 #include <memory>
 #include <regex>
 #include <tuple>
@@ -1070,7 +1071,7 @@ ASTPointer<UsingForDirective> Parser::parseUsingDirective()
 
 					parserError(
 						4403_error,
-						fmt::format(
+						std::format(
 							"Not a user-definable operator: {}. Only the following operators can be user-defined: {}",
 							operatorName,
 							util::joinHumanReadable(userDefinableOperators | ranges::views::transform([](Token _t) { return std::string{TokenTraits::toString(_t)}; }))

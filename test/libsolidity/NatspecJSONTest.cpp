@@ -25,9 +25,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 
-#include <fmt/format.h>
-
-#include <vector>
+#include <format>
 
 using namespace solidity::frontend::test;
 using namespace solidity::util;
@@ -70,7 +68,7 @@ void NatspecJSONTest::parseCustomExpectations(std::istream& _stream)
 		Json parsedJSON;
 		bool jsonParsingSuccessful = jsonParseStrict(rawJSON, parsedJSON, &jsonErrors);
 		if (!jsonParsingSuccessful)
-			BOOST_THROW_EXCEPTION(std::runtime_error(fmt::format(
+			BOOST_THROW_EXCEPTION(std::runtime_error(std::format(
 				"Malformed JSON in {} expectation for contract {}.\n"
 				"Note that JSON expectations must be pretty-printed to be split correctly. "
 				"The object is assumed to and at the first unindented closing brace.\n"

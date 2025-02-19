@@ -20,8 +20,7 @@
 
 #include <libyul/AST.h>
 
-#include <fmt/format.h>
-
+#include <format>
 #include <memory>
 #include <string>
 #include <vector>
@@ -156,7 +155,7 @@ void RenameSymbol::extractNameAndDeclaration(ASTNode const& _node, int _cursorBy
 	else
 		solAssert(false, "Unexpected ASTNODE id: " + std::to_string(_node.id()));
 
-	lspDebug(fmt::format("Goal: rename '{}', loc: {}-{}", m_symbolName, m_declarationToRename->nameLocation().start, m_declarationToRename->nameLocation().end));
+	lspDebug(std::format("Goal: rename '{}', loc: {}-{}", m_symbolName, m_declarationToRename->nameLocation().start, m_declarationToRename->nameLocation().end));
 }
 
 void RenameSymbol::extractNameAndDeclaration(ImportDirective const& _importDirective, int _cursorBytePosition)

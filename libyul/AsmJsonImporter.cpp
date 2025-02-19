@@ -35,6 +35,7 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string.hpp>
 
+#include <format>
 #include <vector>
 
 using namespace solidity::langutil;
@@ -181,7 +182,7 @@ Literal AsmJsonImporter::createLiteral(Json const& _node)
 		auto const typeNode = member(_node, "type");
 		yulAssert(
 			typeNode.empty() || typeNode.get<std::string>().empty(),
-			fmt::format(
+			std::format(
 				"Expected literal types to be either empty or absent in the JSON. Got \"{}\".",
 				typeNode.get<std::string>()
 			)

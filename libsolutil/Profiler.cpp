@@ -18,8 +18,6 @@
 
 #include <libsolutil/Profiler.h>
 
-#include <fmt/format.h>
-
 #include <algorithm>
 #include <iostream>
 #include <vector>

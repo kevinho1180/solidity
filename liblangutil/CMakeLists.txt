@@ -31,4 +31,4 @@ set(sources
 )
 
 add_library(langutil ${sources})
-target_link_libraries(langutil PUBLIC solutil fmt::fmt-header-only)
+target_link_libraries(langutil PUBLIC solutil)

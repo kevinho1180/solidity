@@ -58,7 +58,6 @@ include(EthCcache)
 # Let's find our dependencies
 include(EthDependencies)
 if (NOT IGNORE_VENDORED_DEPENDENCIES)
-  include(fmtlib)
   include(nlohmann-json)
   include(range-v3)
 endif()

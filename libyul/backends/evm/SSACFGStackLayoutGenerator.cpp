@@ -134,7 +134,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 }
 
 void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
-	SSACFG::BlockId _source,
+	SSACFG::BlockId const _source,
 	SSACFG::BasicBlock::ConditionalJump const& _condJump
 )
 {
@@ -143,16 +143,23 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 
 	if (!blockHasDefinedStackIn(_condJump.nonZero))
 	{
-		auto const& targetLiveIn = m_liveness.liveIn(_condJump.nonZero);
-		std::vector<SSACFGStackLayout::Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
+		auto const& zeroLiveIn = m_liveness.liveIn(_condJump.zero);
+		auto const& nonZeroLiveIn = m_liveness.liveIn(_condJump.nonZero);
+
+		auto const pulledBackZeroLiveIn = zeroLiveIn | ranges::views::transform(ReversePhiFunctionTransform(m_cfg, _source, _condJump.zero)) | ranges::to<std::set>;
+
+		std::vector<SSACFGStackLayout::Slot> const nonZeroLiveInSlots(nonZeroLiveIn.begin(), nonZeroLiveIn.end());
+		auto const remainingZeroLiveIn = pulledBackZeroLiveIn - nonZeroLiveIn;
+		std::vector<SSACFGStackLayout::Slot> const remainingZeroLiveInSlots(remainingZeroLiveIn.begin(), remainingZeroLiveIn.end());
 
 		if (requiresCleanStack(_condJump.nonZero))
 		{
-			m_stackLayout[_condJump.nonZero].stackIn = targetLiveInSlots;
+			// [phi^-1(liveInZero) - liveInNonZero, liveInNonZero]
+			m_stackLayout[_condJump.nonZero].stackIn = remainingZeroLiveInSlots + nonZeroLiveInSlots;
 		}
 		else
 		{
-
+			// todo
 		}
 	}
 }

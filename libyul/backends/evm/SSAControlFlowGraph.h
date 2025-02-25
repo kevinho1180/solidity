@@ -52,17 +52,13 @@ public:
 	struct BlockId
 	{
 		size_t value = std::numeric_limits<size_t>::max();
-		bool operator<(BlockId const& _rhs) const { return value < _rhs.value; }
-		bool operator==(BlockId const& _rhs) const { return value == _rhs.value; }
-		bool operator!=(BlockId const& _rhs) const { return value != _rhs.value; }
+		auto operator<=>(BlockId const&) const = default;
 	};
 	struct ValueId
 	{
 		size_t value = std::numeric_limits<size_t>::max();
 		bool hasValue() const { return value != std::numeric_limits<size_t>::max(); }
-		bool operator<(ValueId const& _rhs) const { return value < _rhs.value; }
-		bool operator==(ValueId const& _rhs) const { return value == _rhs.value; }
-		bool operator!=(ValueId const& _rhs) const { return value != _rhs.value; }
+		auto operator<=>(ValueId const&) const = default;
 	};
 
 	struct BuiltinCall

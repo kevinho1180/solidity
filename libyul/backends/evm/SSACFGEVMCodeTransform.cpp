@@ -91,7 +91,6 @@ ssacfg::StackSlot ssacfg::PhiMapping::transform(StackSlot const& _slot) const
 {
 	if (auto* valueId = std::get_if<SSACFG::ValueId>(&_slot))
 	{
-		// todo unrecurse, protect against cycles
 		auto const it = m_reverseMapping.find(*valueId);
 		if (it == m_reverseMapping.end())
 			return _slot;
@@ -529,7 +528,7 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 				auto const liveIn = m_liveness.liveIn(_conditionalJump.nonZero) | ranges::to<std::vector<ssacfg::StackSlot>>;
 				ssacfg::PhiMapping zeroBranchMapping {m_cfg, _block, _conditionalJump.zero};
 				auto const liveOut = zeroBranchMapping.transformStackToPhiValues(m_liveness.liveIn(_conditionalJump.zero) | ranges::to<std::vector<ssacfg::StackSlot>>);
-				nonZeroLayout = (liveOut + liveIn) | ranges::to<std::set> | ranges::to<std::vector>;
+				nonZeroLayout = liveOut + liveIn | ranges::to<std::set> | ranges::to<std::vector>;
 				// todo this requires better stack layout generation
 				/*if (requiresCleanStack(_conditionalJump.nonZero))
 					nonZeroLayout = (liveOut + liveIn) | ranges::to<std::set> | ranges::to<std::vector>;

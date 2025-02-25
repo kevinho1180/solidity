@@ -18,10 +18,8 @@
 
 #pragma once
 
-#include <libyul/backends/evm/AbstractAssembly.h>
 #include <libyul/backends/evm/SSAControlFlowGraph.h>
-
-#include <variant>
+#include <libyul/backends/evm/SSACFGStackLayout.h>
 
 namespace solidity::yul {
 
@@ -29,36 +27,38 @@ struct ControlFlowLiveness;
 struct ControlFlow;
 class SSACFGLiveness;
 
-struct SSACFGStackLayout
-{
-	// a slot can be some valueId or a labelId
-	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID>;
-	// each operation has a current stack
-	using Stack = std::vector<Slot>;
-	// each block has a fixed list of operations
-	using BlockLayouts = std::vector<Stack>;
-
-	// layout for the main graph
-	BlockLayouts mainLayout;
-	// layout for each function graph, ordered as in the `ControlFlow`
-	std::vector<BlockLayouts> functionLayouts;
-};
-
 class SSACFGStackLayoutGenerator {
 public:
-	static SSACFGStackLayout run(ControlFlowLiveness const& _controlFlowLiveness);
+	static ControlFlowLayout generate(ControlFlowLiveness const& _controlFlowLiveness);
 private:
-	SSACFGStackLayoutGenerator(SSACFGLiveness const& _liveness, SSACFGStackLayout::Stack const& _initialStack = {});
+	explicit SSACFGStackLayoutGenerator(SSACFGLiveness const& _liveness);
 	~SSACFGStackLayoutGenerator();
 
-	SSACFGStackLayout::BlockLayouts processEntryPoint();
-
 	bool requiresCleanStack(SSACFG::BlockId _block) const;
+
+	SSACFGStackLayout const& run();
+	void visitBlock(SSACFG::BlockId _blockId);
+	void populateBlockExitStackIn(SSACFG::BlockId _blockId);
+
+	void populateStackInFromJumpExit(SSACFG::BlockId _source, SSACFG::BasicBlock::Jump const& _jump);
+	void populateStackInFromConditionalJumpExit(
+		SSACFG::BlockId _source,
+		SSACFG::BasicBlock::ConditionalJump const& _condJump
+	);
+
+	bool blockIsGenerated(SSACFG::BlockId _blockId) const;
+	void markBlockGenerated(SSACFG::BlockId _blockId);
+	bool blockHasDefinedStackIn(SSACFG::BlockId _blockId) const;
+	void markBlockHasDefinedStackIn(SSACFG::BlockId _blockId);
 
 	SSACFGLiveness const& m_liveness;
 	SSACFG const& m_cfg;
 
-	SSACFGStackLayout::BlockLayouts m_layout;
+	/// Keeping track of what blocks were already visited. uses uint8 over bool as there is no need to space-optimize.
+	std::vector<std::uint8_t> m_generatedBlocks;
+	/// Keeping track which block has its input layout defined
+	std::vector<std::uint8_t> m_definedStackIn;
+	SSACFGStackLayout m_stackLayout;
 };
 
 }

@@ -125,4 +125,73 @@ struct BreadthFirstSearch
 	std::set<V> visited{};
 };
 
+template<typename Graph>
+concept TarjanSCCGraphConcept = requires(
+	Graph const& _graph,
+	typename Graph::Vertex const& _vertex
+)
+{
+	{ _graph.edges(_vertex) } -> std::convertible_to<std::vector<typename Graph::Vertex>>;
+	{ _graph.vertices() } -> std::convertible_to<std::vector<typename Graph::Vertex>>;
+};
+template<TarjanSCCGraphConcept Graph>
+std::vector<std::vector<typename Graph::Vertex>> tarjanSCC(Graph const& _graph)
+{
+	std::vector<std::vector<typename Graph::Vertex>> result;
+
+	auto const vertices = _graph.vertices();
+
+	std::map<typename Graph::Vertex, size_t> vertexToIndex;
+	for (size_t v = 0; v < _graph.vertices().size(); ++v)
+		vertexToIndex[vertices[v]] = v;
+
+	size_t index = 0;
+	std::vector<std::optional<size_t>> vertexIndex(vertices.size());
+	std::vector<size_t> vertexLowlink(vertices.size());
+	std::vector<uint8_t> vertexOnStack(vertices.size());
+	std::vector<size_t> stack;
+
+	std::function<void(size_t)> strongConnect;
+	strongConnect = [&](size_t v)
+	{
+		vertexIndex[v] = index;
+		vertexLowlink[v] = index;
+		++index;
+		stack.push_back(v);
+		vertexOnStack[v] = true;
+		for (typename Graph::Vertex const neighborOfVertex: _graph.edges(vertices[v]))
+		{
+			auto const w = vertexToIndex.at(neighborOfVertex);
+			if (!vertexIndex[w])
+			{
+				strongConnect(w);
+				vertexLowlink[v] = std::min(vertexLowlink[v], vertexLowlink[w]);
+			}
+			else if (vertexOnStack[w])
+			{
+				vertexLowlink[v] = std::min(vertexLowlink[w], *vertexIndex[w]);
+			}
+		}
+
+		if (vertexLowlink[v] == vertexIndex[v])
+		{
+			// new SCC
+			result.emplace_back();
+			size_t w;
+			do
+			{
+				w = stack.back();
+				stack.pop_back();
+				result.back().push_back(vertices[w]);
+				vertexOnStack[w] = false;
+			} while (w != v);
+		}
+	};
+	for (size_t v = 0; v < _graph.vertices().size(); ++v)
+		if (!vertexIndex[v])
+			strongConnect(v);
+
+	return result;
+}
+
 }

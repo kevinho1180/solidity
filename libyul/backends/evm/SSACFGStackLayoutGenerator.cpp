@@ -20,6 +20,7 @@
 
 #include <libyul/backends/evm/ControlFlow.h>
 #include <libyul/backends/evm/SSACFGLiveness.h>
+#include <libyul/backends/evm/SSACFGStackShuffler.h>
 
 #include <libsolutil/Visitor.h>
 
@@ -63,10 +64,12 @@ struct StackShuffleResult
 };
 
 /// shuffles `_source` stack to the point where the `_requiredTop` of the `_target` is met and the rest is in arbitrary order
+template<SSACFGStackShuffler Shuffler>
 StackShuffleResult shuffleStack(
 	SSACFGStackLayout::Stack const& _source,
 	SSACFGStackLayout::Stack const& _targetTop,
-	std::set<SSACFGStackLayout::Slot> const& _targetRest
+	std::set<SSACFGStackLayout::Slot> const& _targetRest,
+	ReversePhiFunctionTransform const& _phiFunctionTransform = {}
 )
 {
 	// todo

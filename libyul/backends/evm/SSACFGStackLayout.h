@@ -34,6 +34,7 @@ namespace solidity::yul
 class ReversePhiFunctionTransform
 {
 public:
+	ReversePhiFunctionTransform() = default;
 	ReversePhiFunctionTransform(SSACFG const& _cfg, SSACFG::BlockId _from, SSACFG::BlockId _to);
 
 	/// whether the transform is guaranteed to be a no-op, ie, there is no phi function in `_to`
@@ -41,7 +42,7 @@ public:
 	SSACFG::ValueId operator()(SSACFG::ValueId _valueId) const;
 
 private:
-	std::map<SSACFG::ValueId, SSACFG::ValueId> m_reversePhiMap;
+	std::map<SSACFG::ValueId, SSACFG::ValueId> m_reversePhiMap = {};
 };
 
 struct SSACFGStackLayout

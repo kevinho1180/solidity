@@ -23,7 +23,10 @@
 using namespace solidity::yul;
 
 ReversePhiFunctionTransform::ReversePhiFunctionTransform(
-	SSACFG const& _cfg, SSACFG::BlockId const _from, SSACFG::BlockId const _to)
+	SSACFG const& _cfg,
+	SSACFG::BlockId const _from,
+	SSACFG::BlockId const _to
+)
 {
 	auto const argIndex = _cfg.phiArgumentIndex(_from, _to);
 	for (auto const& phiId: _cfg.block(_to).phis)

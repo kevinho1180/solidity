@@ -25,16 +25,15 @@
 namespace solidity::yul
 {
 
-template<typename StackShuffler, typename Stack>
+template<typename StackShuffler>
 concept SSACFGStackShuffler = requires(
 	StackShuffler _shuffler,
-	Stack _sourceStack,
-	Stack _targetStackTop,
-	std::vector<typename Stack::Slot> _targetStackRest
+	typename StackShuffler::Stack _sourceStack,
+	typename StackShuffler::Stack _targetStackTop,
+	std::vector<typename StackShuffler::Stack::Slot> _targetStackRest
 )
 {
-	{ Stack::Slot };
-	{ _shuffler.shuffle(_sourceStack, _targetStackTop, _targetStackRest) } -> std::convertible_to<Stack>;
+	{ _shuffler.shuffle(_sourceStack, _targetStackTop, _targetStackRest) } -> std::convertible_to<typename StackShuffler::Stack>;
 };
 
 template<typename StackType>
@@ -117,7 +116,7 @@ struct BubbleShuffler
 		return shuffledStack;
 	}
 
-	static_assert(SSACFGStackShuffler<BubbleShuffler, StackType>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
+	static_assert(SSACFGStackShuffler<BubbleShuffler>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
 };
 
 }

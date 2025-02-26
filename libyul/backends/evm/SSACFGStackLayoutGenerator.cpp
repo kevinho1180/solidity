@@ -96,10 +96,7 @@ void SSACFGStackLayoutGenerator::visitBlock(SSACFG::BlockId const _blockId)
 void SSACFGStackLayoutGenerator::populateBlockExitStackIn(SSACFG::BlockId const _blockId)
 {
 	std::visit(util::GenericVisitor{
-		[](SSACFG::BasicBlock::MainExit const&)
-		{
-			// todo
-		},
+		[](SSACFG::BasicBlock::MainExit const&) {},
 		[&](SSACFG::BasicBlock::Jump const& _jump)
 		{
 			populateStackInFromJumpExit(_blockId, _jump);
@@ -125,7 +122,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 		return;
 
 	auto const& targetLiveIn = m_liveness.liveIn(_jump.target);
-	std::vector<SSACFGStackLayout::Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
+	SSACFGStackLayout::Stack const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
 	if (requiresCleanStack(_jump.target))
 		m_stackLayout[_jump.target].stackIn = targetLiveInSlots;
 	else
@@ -153,14 +150,26 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		std::vector<SSACFGStackLayout::Slot> const remainingZeroLiveInSlots(remainingZeroLiveIn.begin(), remainingZeroLiveIn.end());
 
 		if (requiresCleanStack(_condJump.nonZero))
-		{
 			// [phi^-1(liveInZero) - liveInNonZero, liveInNonZero]
 			m_stackLayout[_condJump.nonZero].stackIn = remainingZeroLiveInSlots + nonZeroLiveInSlots;
-		}
 		else
-		{
-			// todo
-		}
+			m_stackLayout[_condJump.nonZero].stackIn = m_stackLayout[_source].stackOut + nonZeroLiveInSlots;
+
+		// condition always has to be at the top
+		m_stackLayout[_condJump.nonZero].stackIn.emplace_back(_condJump.condition);
+
+		markBlockHasDefinedStackIn(_condJump.nonZero);
+	}
+
+	if (!blockHasDefinedStackIn(_condJump.zero))
+	{
+		auto const& zeroLiveIn = m_liveness.liveIn(_condJump.zero);
+		SSACFGStackLayout::Stack const zeroLiveInStack(zeroLiveIn.begin(), zeroLiveIn.end());
+		if (requiresCleanStack(_condJump.zero))
+			m_stackLayout[_condJump.zero].stackIn = zeroLiveInStack;
+		else
+			m_stackLayout[_condJump.zero].stackIn = m_stackLayout[_source].stackOut + zeroLiveInStack;
+		markBlockHasDefinedStackIn(_condJump.zero);
 	}
 }
 

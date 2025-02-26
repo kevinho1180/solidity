@@ -155,9 +155,21 @@ template <class T> inline langutil::DebugData::ConstPtr debugDataOf(T const& _no
 }
 
 /// Extracts the debug data from a Yul node.
+template <class T> inline void setDebugData(T& _node, langutil::DebugData::ConstPtr _debugData)
+{
+	_node.debugData = std::move(_debugData);
+}
+
+/// Extracts the debug data from a Yul node.
 template <class... Args> inline langutil::DebugData::ConstPtr debugDataOf(std::variant<Args...> const& _node)
 {
 	return std::visit([](auto const& _arg) { return debugDataOf(_arg); }, _node);
+}
+
+/// Extracts the debug data from a Yul node.
+template <class... Args> inline void setDebugData(std::variant<Args...>& _node, langutil::DebugData::ConstPtr _debugData)
+{
+	return std::visit([&](auto& _arg) { setDebugData(_arg, _debugData); }, _node);
 }
 
 inline bool hasDefaultCase(Switch const& _switch)

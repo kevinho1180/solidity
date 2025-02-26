@@ -20,8 +20,10 @@
  */
 
 #include <libyul/optimiser/EquivalentFunctionCombiner.h>
+#include <libyul/optimiser/SourceLocationRemover.h>
 #include <libyul/AST.h>
 #include <libsolutil/CommonData.h>
+#include <range/v3/view/map.hpp>
 
 using namespace solidity;
 using namespace solidity::yul;
@@ -30,6 +32,15 @@ void EquivalentFunctionCombiner::run(OptimiserStepContext&, Block& _ast)
 {
 	EquivalentFunctionCombiner{EquivalentFunctionDetector::run(_ast)}(_ast);
 }
+
+void EquivalentFunctionCombiner::operator()(FunctionDefinition& _functionDefinition)
+{
+	for (auto* functionDefinition: m_duplicates | ranges::views::values)
+		if (&_functionDefinition == functionDefinition)
+			SourceLocationRemover{}(_functionDefinition);
+	ASTModifier::operator()(_functionDefinition);
+}
+
 
 void EquivalentFunctionCombiner::operator()(FunctionCall& _funCall)
 {

@@ -44,6 +44,7 @@ public:
 
 	using ASTModifier::operator();
 	void operator()(FunctionCall& _funCall) override;
+	void operator()(FunctionDefinition& _funCall) override;
 
 private:
 	EquivalentFunctionCombiner(std::map<YulName, FunctionDefinition const*> _duplicates): m_duplicates(std::move(_duplicates)) {}

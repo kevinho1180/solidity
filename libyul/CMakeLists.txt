@@ -178,6 +178,7 @@ add_library(yul
 	optimiser/Semantics.h
 	optimiser/SimplificationRules.cpp
 	optimiser/SimplificationRules.h
+	optimiser/SourceLocationRemover.h
 	optimiser/StackCompressor.cpp
 	optimiser/StackCompressor.h
 	optimiser/StackLimitEvader.cpp

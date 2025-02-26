@@ -23,6 +23,7 @@
 
 #include <libsolutil/Visitor.h>
 
+#include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/none_of.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/reverse.hpp>
@@ -51,8 +52,8 @@ bool operationIsTwoCommutativeBuiltin(SSACFG::Operation const& _operation)
 		return false;
 
 	BuiltinFunction const& builtin = std::get<SSACFG::BuiltinCall>(_operation.kind).builtin.get();
-	static std::set<std::string_view> constexpr twoCommutativeBuiltins{"add", "addmod", "mul", "mulmod", "eq", "and", "or", "xor"};
-	return twoCommutativeBuiltins.contains(builtin.name);
+	static std::array constexpr twoCommutativeBuiltins{"add", "addmod", "mul", "mulmod", "eq", "and", "or", "xor"};
+	return ranges::find(twoCommutativeBuiltins, builtin.name) != twoCommutativeBuiltins.end();
 }
 
 struct StackShuffleResult

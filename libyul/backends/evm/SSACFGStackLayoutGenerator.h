@@ -38,8 +38,13 @@ private:
 
 	SSACFGStackLayout const& run();
 	void visitBlock(SSACFG::BlockId _blockId);
-	void populateBlockExitStackIn(SSACFG::BlockId _blockId);
+	SSACFGStackLayout::Stack visitOperation(
+		SSACFG::BlockId _blockId,
+		size_t _operationIndex,
+		SSACFGStackLayout::Stack const& _inputStack
+	);
 
+	void populateBlockExitStackIn(SSACFG::BlockId _blockId);
 	void populateStackInFromJumpExit(SSACFG::BlockId _source, SSACFG::BasicBlock::Jump const& _jump);
 	void populateStackInFromConditionalJumpExit(
 		SSACFG::BlockId _source,

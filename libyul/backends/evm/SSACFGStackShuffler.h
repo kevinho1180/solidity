@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <range/v3/view/reverse.hpp>
-
 #include <concepts>
 
 namespace solidity::yul
@@ -33,10 +31,11 @@ concept SSACFGStackShuffler = requires(
 	std::vector<typename StackShuffler::Stack::Slot> _targetStackRest
 )
 {
+	typename StackShuffler::Stack;
 	{ _shuffler.shuffle(_sourceStack, _targetStackTop, _targetStackRest) } -> std::convertible_to<typename StackShuffler::Stack>;
 };
 
-template<typename StackType>
+template<SSACFGStack StackType>
 struct BubbleShuffler
 {
 	using Stack = StackType;
@@ -85,7 +84,7 @@ struct BubbleShuffler
 					yulAssert(currentCount <= targetCount);
 					for (size_t i = 0; i < targetCount - currentCount; ++i)
 					{
-						auto const depth = slotIndex(slot);
+						auto const depth = shuffledStack.slotIndex(slot);
 						yulAssert(depth);
 						shuffledStack.dup(*depth);
 					}
@@ -116,7 +115,6 @@ struct BubbleShuffler
 		return shuffledStack;
 	}
 
-	static_assert(SSACFGStackShuffler<BubbleShuffler>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
 };
 
 }

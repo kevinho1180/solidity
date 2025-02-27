@@ -23,6 +23,10 @@
 
 #include <libyul/Exceptions.h>
 
+#include <libsolutil/Visitor.h>
+
+#include <range/v3/view/reverse.hpp>
+
 #include <map>
 #include <variant>
 #include <vector>
@@ -45,12 +49,114 @@ private:
 	std::map<SSACFG::ValueId, SSACFG::ValueId> m_reversePhiMap = {};
 };
 
+template<typename Stack>
+concept SSACFGStack = requires(Stack _stack, size_t _depth, typename Stack::Slot _slot)
+{
+	typename Stack::Slot;
+	{ _stack.top() } -> std::convertible_to<typename Stack::Slot>;
+	{ _stack.swap(_depth) } -> std::same_as<void>;
+	{ _stack.pop() } -> std::same_as<void>;
+	{ _stack.push(_slot) } -> std::same_as<void>;
+	{ _stack.slotIndex(_slot) } -> std::convertible_to<std::optional<size_t>>;
+	{ _stack.size() } -> std::convertible_to<size_t>;
+	{ _stack[_depth] } -> std::convertible_to<typename Stack::Slot>;
+	// we can iterate over a stack
+	{ ranges::range<ranges::range_value_t<Stack>> };
+	{ ranges::range_value_t<Stack>{} } -> std::convertible_to<typename Stack::Slot>;
+};
+
+struct SSACFGStackLayoutStack
+{
+	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID>;
+
+	SSACFGStackLayoutStack() = default;
+	explicit SSACFGStackLayoutStack(std::vector<Slot> _stack): data(std::move(_stack)) {}
+
+	void swap(size_t const _depth)
+	{
+		yulAssert(data.size() > _depth);
+		std::swap(data[data.size() - _depth - 1], data.back());
+	}
+
+	void pop()
+	{
+		yulAssert(!data.empty());
+		data.pop_back();
+	}
+
+	void push(Slot const& _value)
+	{
+		data.emplace_back(_value);
+	}
+
+	void dup(size_t const _depth)
+	{
+		yulAssert(data.size() >= _depth + 1);
+		data.push_back(data[data.size() - _depth - 1]);
+	}
+
+	bool dup(Slot const& _value)
+	{
+		auto offset = slotIndex(_value);
+		if (offset)
+			dup(*offset);
+		return offset.has_value();
+	}
+
+	std::optional<size_t> slotIndex(Slot const& _value) const
+	{
+		auto const offset = util::findOffset(data | ranges::views::reverse, _value);
+		if (offset)
+		{
+			yulAssert(data.size() >= *offset + 1);
+			yulAssert(data[data.size() - *offset - 1] == _value);
+		}
+		return offset;
+	}
+
+	void bringUpSlot(Slot const& _slot)
+	{
+		std::visit(util::GenericVisitor{
+			[&](SSACFG::ValueId _value) {
+				if (!dup(_slot))
+					push(_value);
+			},
+			[&](AbstractAssembly::LabelID _label) {
+				data.emplace_back(_label);
+			}
+		}, _slot);
+	}
+
+	size_t size() const
+	{
+		return data.size();
+	}
+
+	Slot const& operator[](size_t const _index) const
+	{
+		return data[_index];
+	}
+
+	Slot const& top() const
+	{
+		yulAssert(!data.empty());
+		return data.back();
+	}
+
+	auto begin() const { return ranges::begin(data); }
+	auto end() const { return ranges::end(data); }
+
+	std::vector<Slot> data;
+};
+
+static_assert(SSACFGStack<SSACFGStackLayoutStack>);
+
 struct SSACFGStackLayout
 {
-	// a slot can be some valueId or a labelId
-	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID>;
 	// each operation has a current stack
-	using Stack = std::vector<Slot>;
+	using Stack = SSACFGStackLayoutStack;
+	// a slot can be some valueId or a labelId
+	using Slot = Stack::Slot;
 
 	// Each block has its own layout
 	struct BlockLayout

@@ -47,7 +47,7 @@ private:
 };
 
 /// Checks whether the operation is builtin and if it is considered commutative in the first two arguments.
-bool operationIsTwoCommutativeBuiltin(SSACFG::Operation const& _operation)
+/*bool operationIsTwoCommutativeBuiltin(SSACFG::Operation const& _operation)
 {
 	if (!std::holds_alternative<SSACFG::BuiltinCall>(_operation.kind))
 		return false;
@@ -55,7 +55,7 @@ bool operationIsTwoCommutativeBuiltin(SSACFG::Operation const& _operation)
 	BuiltinFunction const& builtin = std::get<SSACFG::BuiltinCall>(_operation.kind).builtin.get();
 	static std::array constexpr twoCommutativeBuiltins{"add", "addmod", "mul", "mulmod", "eq", "and", "or", "xor"};
 	return ranges::find(twoCommutativeBuiltins, builtin.name) != twoCommutativeBuiltins.end();
-}
+}*/
 
 struct StackShuffleResult
 {
@@ -73,7 +73,8 @@ StackShuffleResult shuffleStack(
 )
 {
 	// todo
-	return {_target};
+	//return {_target};
+	return {};
 }
 
 }
@@ -103,11 +104,12 @@ SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
 		m_stackLayout[m_cfg.entry].stackIn = {};
 	else
 		// for function CFG: arguments are at the top of the stack
-		m_stackLayout[m_cfg.entry].stackIn =
+		m_stackLayout[m_cfg.entry].stackIn = SSACFGStackLayout::Stack(
 			m_cfg.arguments |
 			ranges::views::reverse |
-			ranges::views::transform([](auto&& _variableAndValueId) { return std::get<1>(_variableAndValueId); }) |
-			ranges::to<SSACFGStackLayout::Stack>;
+			ranges::views::transform([](auto&& _variableAndValueId) -> SSACFGStackLayout::Slot { return std::get<1>(_variableAndValueId); }) |
+			ranges::to<std::vector>
+		);
 }
 
 SSACFGStackLayoutGenerator::~SSACFGStackLayoutGenerator() = default;
@@ -158,20 +160,15 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	// literals should have been pulled out a priori and now are treated as push constants
 	yulAssert(ranges::none_of(operationLiveOut, IsLiteral(m_cfg)));
 
-	auto liveOutWithoutOutputs = operationLiveOut - operation.outputs;
-	SSACFGStackLayout::Stack const requiredStackTop(operation.inputs.begin(), operation.inputs.end());
+	auto const liveOutWithoutOutputsSet = operationLiveOut - operation.outputs;
+	auto const liveOutWithoutOutputs = std::vector<SSACFGStackLayout::Slot>(liveOutWithoutOutputsSet.begin(), liveOutWithoutOutputsSet.end());
+	SSACFGStackLayout::Stack const requiredStackTop(std::vector<SSACFGStackLayout::Slot>(operation.inputs.begin(), operation.inputs.end()));
 
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
-	auto outputStack = shuffleStack(
-		_inputStack,
-		requiredStackTop,
-		std::set<SSACFGStackLayout::Slot>(liveOutWithoutOutputs.begin(), liveOutWithoutOutputs.end())
-	);
+	static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
+	auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
 
-	if (operationIsTwoCommutativeBuiltin(operation))
-	{
-		// todo try again with swapped args, take version that uses less gas
-	}
+	return outputStack;
 }
 
 
@@ -206,11 +203,11 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 	auto const& targetLiveIn = m_liveness.liveIn(_jump.target);
 	yulAssert(ranges::none_of(targetLiveIn, IsLiteral(m_cfg)));
 
-	SSACFGStackLayout::Stack const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
+	std::vector<SSACFGStackLayout::Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
 	if (requiresCleanStack(_jump.target))
-		m_stackLayout[_jump.target].stackIn = targetLiveInSlots;
+		m_stackLayout[_jump.target].stackIn = SSACFGStackLayout::Stack(targetLiveInSlots);
 	else
-		m_stackLayout[_jump.target].stackIn = m_stackLayout[_source].stackOut + targetLiveInSlots;
+		m_stackLayout[_jump.target].stackIn = SSACFGStackLayout::Stack(m_stackLayout[_source].stackOut.data + targetLiveInSlots);
 	markBlockHasDefinedStackIn(_jump.target);
 }
 
@@ -237,12 +234,12 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 
 		if (requiresCleanStack(_condJump.nonZero))
 			// [phi^-1(liveInZero) - liveInNonZero, liveInNonZero]
-			m_stackLayout[_condJump.nonZero].stackIn = remainingZeroLiveInSlots + nonZeroLiveInSlots;
+			m_stackLayout[_condJump.nonZero].stackIn = SSACFGStackLayout::Stack(remainingZeroLiveInSlots + nonZeroLiveInSlots);
 		else
-			m_stackLayout[_condJump.nonZero].stackIn = m_stackLayout[_source].stackOut + nonZeroLiveInSlots;
+			m_stackLayout[_condJump.nonZero].stackIn = SSACFGStackLayout::Stack(m_stackLayout[_source].stackOut.data + nonZeroLiveInSlots);
 
 		// condition always has to be at the top
-		m_stackLayout[_condJump.nonZero].stackIn.emplace_back(_condJump.condition);
+		m_stackLayout[_condJump.nonZero].stackIn.push(_condJump.condition);
 
 		markBlockHasDefinedStackIn(_condJump.nonZero);
 	}
@@ -252,11 +249,11 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		auto const& zeroLiveIn = m_liveness.liveIn(_condJump.zero);
 		yulAssert(ranges::none_of(zeroLiveIn, IsLiteral(m_cfg)));
 
-		SSACFGStackLayout::Stack const zeroLiveInStack(zeroLiveIn.begin(), zeroLiveIn.end());
+		std::vector<SSACFGStackLayout::Slot> const zeroLiveInStackData(zeroLiveIn.begin(), zeroLiveIn.end());
 		if (requiresCleanStack(_condJump.zero))
-			m_stackLayout[_condJump.zero].stackIn = zeroLiveInStack;
+			m_stackLayout[_condJump.zero].stackIn = SSACFGStackLayout::Stack(zeroLiveInStackData);
 		else
-			m_stackLayout[_condJump.zero].stackIn = m_stackLayout[_source].stackOut + zeroLiveInStack;
+			m_stackLayout[_condJump.zero].stackIn = SSACFGStackLayout::Stack(m_stackLayout[_source].stackOut.data + zeroLiveInStackData);
 		markBlockHasDefinedStackIn(_condJump.zero);
 	}
 }

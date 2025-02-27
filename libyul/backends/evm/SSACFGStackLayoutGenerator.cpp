@@ -30,6 +30,7 @@
 #include <range/v3/view/reverse.hpp>
 
 #include <range/v3/to_container.hpp>
+#include <range/v3/view/drop.hpp>
 
 using namespace solidity::yul;
 
@@ -41,6 +42,10 @@ public:
 	explicit IsLiteral(SSACFG const& _cfg): m_cfg(_cfg) {}
 
 	bool operator()(SSACFG::ValueId const _valueId) const { return m_cfg.isLiteralValue(_valueId); }
+	bool operator()(SSACFGStackLayout::Slot const& _slot) const
+	{
+		return std::holds_alternative<SSACFG::ValueId>(_slot) && (*this)(std::get<SSACFG::ValueId>(_slot));
+	}
 
 private:
 	SSACFG const& m_cfg;
@@ -166,9 +171,28 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
 	static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
-	auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
-
-	return outputStack;
+	// auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
+	// todo for now I just require the stack top to be the ops inputs and leave the rest as-is
+	m_stackLayout[_blockId].operationIn[_operationIndex] = SSACFGStackLayout::Stack(_inputStack.data + requiredStackTop.data);
+	auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
+	// compress
+	{
+		while (stackOut.size() > 0)
+		{
+			if (IsLiteral(m_cfg)(stackOut.top()))
+				stackOut.pop();
+			else if (auto offset = util::findOffset(stackOut | ranges::views::reverse | ranges::views::drop(1), stackOut.top()))
+			{
+				if (*offset + 2 < 16) // todo non-eof specific and why +2?
+					stackOut.pop();
+				else
+					break;
+			}
+			else
+				break;
+		}
+	}
+	return stackOut;
 }
 
 

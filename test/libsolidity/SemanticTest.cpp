@@ -339,8 +339,11 @@ TestCase::TestResult SemanticTest::run(std::ostream& _stream, std::string const&
 			{
 				std::ofstream f("/tmp/testtrace");
 				f << data << std::endl;
+				std::ofstream ff("/tmp/testtrace_meta");
+				ff << metadata << std::endl;
 			}
 			nlohmann::json data;
+			nlohmann::json metadata;
 		};
 		static TestTraceOutputter output;
 		nlohmann::json filedata;
@@ -414,6 +417,7 @@ TestCase::TestResult SemanticTest::run(std::ostream& _stream, std::string const&
 		{
 			std::string strippedFilename = m_filename.substr(m_filename.find("semanticTests"));
 			output.data[strippedFilename] = filedata;
+			output.metadata[strippedFilename] = nlohmann::json::parse(m_compiler.metadata(contractName));
 		}
 
 

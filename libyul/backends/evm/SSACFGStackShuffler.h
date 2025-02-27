@@ -107,7 +107,7 @@ struct BubbleShuffler
 				if (shuffledStack.size() > i + targetStackTopOffset + 1)
 					shuffledStack.swap(shuffledStack.size() - 1 - targetStackTopOffset - i);
 			}
-			yulAssert(shuffledStack[i + targetStackTopOffset] != _targetStackTop[i]);
+			yulAssert(shuffledStack[i + targetStackTopOffset] == _targetStackTop[i]);
 		}
 
 		yulAssert(shuffledStack.size() == _targetStackTop.size() + _targetStackRest.size());

@@ -23,6 +23,7 @@
 #include <libyul/backends/evm/ControlFlow.h>
 #include <libyul/backends/evm/SSACFGLiveness.h>
 #include <libyul/backends/evm/SSAControlFlowGraph.h>
+#include <libyul/backends/evm/SSACFGStackLayout.h>
 #include <libyul/AST.h>
 #include <libyul/Exceptions.h>
 #include <libyul/Scope.h>
@@ -165,6 +166,7 @@ private:
 	BuiltinContext& m_builtinContext;
 	SSACFG const& m_cfg;
 	SSACFGLiveness const& m_liveness;
+	SSACFGStackLayout m_stackLayout;
 	std::vector<StackTooDeepError> m_stackErrors;
 	FunctionLabels const m_functionLabels;
 	ssacfg::Stack m_stack;

@@ -87,13 +87,18 @@ StackShuffleResult shuffleStack(
 ControlFlowLayout SSACFGStackLayoutGenerator::generate(ControlFlowLiveness const& _controlFlowLiveness)
 {
 	ControlFlowLayout layout;
-	layout.mainLayout = SSACFGStackLayoutGenerator{*_controlFlowLiveness.mainLiveness}.run();
+	layout.mainLayout = generate(*_controlFlowLiveness.mainLiveness);
 
 	layout.functionLayouts.reserve(_controlFlowLiveness.functionLiveness.size());
 	for (auto const& functionLiveness: _controlFlowLiveness.functionLiveness)
-		layout.functionLayouts.push_back(SSACFGStackLayoutGenerator{*functionLiveness}.run());
+		layout.functionLayouts.push_back(generate(*functionLiveness));
 
 	return layout;
+}
+
+SSACFGStackLayout SSACFGStackLayoutGenerator::generate(SSACFGLiveness const& _cfgLiveness)
+{
+	return SSACFGStackLayoutGenerator{_cfgLiveness}.run();
 }
 
 SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
@@ -101,13 +106,18 @@ SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
 ):
 	m_liveness(_liveness),
 	m_cfg(_liveness.cfg()),
-	m_generatedBlocks(_liveness.cfg().numBlocks(), false)
+	m_generatedBlocks(_liveness.cfg().numBlocks(), false),
+	m_definedStackIn(_liveness.cfg().numBlocks(), false)
 {
 	m_stackLayout.blockLayouts.resize(m_cfg.numBlocks());
 	if (!m_cfg.function)
+	{
 		// for the main CFG: empty initial stack
 		m_stackLayout[m_cfg.entry].stackIn = {};
+		markBlockHasDefinedStackIn(m_cfg.entry);
+	}
 	else
+	{
 		// for function CFG: arguments are at the top of the stack
 		m_stackLayout[m_cfg.entry].stackIn = SSACFGStackLayout::Stack(
 			m_cfg.arguments |
@@ -115,6 +125,8 @@ SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
 			ranges::views::transform([](auto&& _variableAndValueId) -> SSACFGStackLayout::Slot { return std::get<1>(_variableAndValueId); }) |
 			ranges::to<std::vector>
 		);
+		markBlockHasDefinedStackIn(m_cfg.entry);
+	}
 }
 
 SSACFGStackLayoutGenerator::~SSACFGStackLayoutGenerator() = default;
@@ -144,7 +156,9 @@ void SSACFGStackLayoutGenerator::visitBlock(SSACFG::BlockId const _blockId)
 	yulAssert(blockHasDefinedStackIn(_blockId));
 
 	SSACFGStackLayout::Stack currentStack = m_stackLayout[_blockId].stackIn;
-	for (size_t operationIndex = 0; operationIndex < m_cfg.block(_blockId).operations.size(); ++operationIndex)
+	auto const numOperationsInBlock = m_cfg.block(_blockId).operations.size();
+	m_stackLayout[_blockId].operationIn.resize(numOperationsInBlock);
+	for (size_t operationIndex = 0; operationIndex < numOperationsInBlock; ++operationIndex)
 		currentStack = visitOperation(_blockId, operationIndex, currentStack);
 	m_stackLayout[_blockId].stackOut = currentStack;
 

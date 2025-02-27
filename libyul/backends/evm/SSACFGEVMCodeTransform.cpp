@@ -22,6 +22,7 @@
 #include <libyul/backends/evm/ControlFlowGraph.h>
 #include <libyul/backends/evm/SSAControlFlowGraphBuilder.h>
 #include <libyul/backends/evm/StackHelpers.h>
+#include <libyul/backends/evm/SSACFGStackLayoutGenerator.h>
 
 #include <libsolutil/StringUtils.h>
 #include <libsolutil/Visitor.h>
@@ -436,6 +437,7 @@ SSACFGEVMCodeTransform::SSACFGEVMCodeTransform
 	m_builtinContext(_builtinContext),
 	m_cfg(_cfg),
 	m_liveness(_liveness),
+	m_stackLayout(SSACFGStackLayoutGenerator::generate(_liveness)),
 	m_functionLabels(std::move(_functionLabels)),
 	m_stack(_assembly, _cfg),
 	m_blockData(_cfg.numBlocks()),

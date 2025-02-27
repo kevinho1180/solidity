@@ -188,7 +188,8 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	// auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
 	// todo for now I just require the stack top to be the ops inputs and leave the rest as-is
 	m_stackLayout[_blockId].operationIn[_operationIndex] = SSACFGStackLayout::Stack(_inputStack.data + requiredStackTop.data);
-	auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
+	// auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
+	auto stackOut = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
 	// compress
 	{
 		while (stackOut.size() > 0)

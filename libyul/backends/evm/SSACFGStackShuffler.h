@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <libyul/backends/evm/StackHelpers.h>
+
 #include <concepts>
 
 namespace solidity::yul
@@ -28,10 +30,12 @@ concept SSACFGStackShuffler = requires(
 	StackShuffler _shuffler,
 	typename StackShuffler::Stack _sourceStack,
 	typename StackShuffler::Stack _targetStackTop,
-	std::vector<typename StackShuffler::Stack::Slot> _targetStackRest
+	std::vector<typename StackShuffler::Stack::Slot> _targetStackRest,
+	typename StackShuffler::Stack::Slot _slot
 )
 {
 	typename StackShuffler::Stack;
+	{ _shuffler.canBeFreelyGenerated(_slot) } -> std::same_as<bool>;
 	{ _shuffler.shuffle(_sourceStack, _targetStackTop, _targetStackRest) } -> std::convertible_to<typename StackShuffler::Stack>;
 };
 
@@ -114,7 +118,90 @@ struct BubbleShuffler
 		// yulAssert(m_stack == _target, fmt::format("Stack target mismatch: current = {} =/= {} = target", stackToStringLoc(m_cfg.get(), m_stack), stackToStringLoc(m_cfg.get(), _target)));
 		return shuffledStack;
 	}
+	static bool canBeFreelyGenerated(StackSlot const&) { return false; }
 
+};
+
+template<SSACFGStack StackType>
+struct DanielShuffler
+{
+	using Stack = StackType;
+	using StackSlot = typename Stack::Slot;
+	static Stack shuffle(Stack const& _sourceStack, Stack const& _targetStackTop, std::vector<StackSlot> const& _targetStackRest)
+	{
+		struct ShuffleOperations
+		{
+			Stack& currentStack;
+			std::map<StackSlot, size_t> sourceCounts;
+			Stack const& targetStack;
+			std::map<StackSlot, size_t> targetCounts;
+
+			ShuffleOperations(
+				Stack& _currentStack,
+				Stack const& _targetStack
+			): currentStack(_currentStack), targetStack(_targetStack)
+			{
+				auto const histogram = [](Stack const& _stack)
+				{
+					std::map<StackSlot, size_t> counts;
+					for (auto const& targetSlot: _stack)
+						++counts[targetSlot];
+					return counts;
+				};
+				targetCounts = histogram(targetStack);
+				sourceCounts = histogram(currentStack);
+			}
+
+			bool isCompatible(size_t _source, size_t _target) const
+			{
+				return _source < currentStack.size() && _target < targetStack.size() && currentStack[_source] == targetStack[_target];
+			}
+
+			bool sourceIsSame(size_t _sourceOffset1, size_t _sourceOffset2) const
+			{
+				return _sourceOffset1 < currentStack.size() && _sourceOffset2 < currentStack.size() && currentStack[_sourceOffset1] == currentStack[_sourceOffset2];
+			}
+
+			int sourceMultiplicity(size_t _sourceOffset) const
+			{
+				auto const& slot = currentStack[_sourceOffset];
+				return static_cast<int>(util::valueOrDefault(targetCounts, slot, static_cast<size_t>(0))) - static_cast<int>(sourceCounts.at(slot));
+			}
+
+			int targetMultiplicity(size_t _targetOffset) const
+			{
+				auto const& slot = targetStack[_targetOffset];
+				return static_cast<int>(targetCounts.at(slot)) - static_cast<int>(util::valueOrDefault(sourceCounts, slot, static_cast<size_t>(0)));
+			}
+
+			bool targetIsArbitrary(size_t) const { return false; }
+
+			size_t sourceSize() const { return currentStack.size(); }
+			size_t targetSize() const { return targetStack.size(); }
+
+			void swap(size_t _depth)
+			{
+				currentStack.swap(_depth);
+			}
+
+			void pop()
+			{
+				currentStack.pop();
+			}
+
+			void pushOrDupTarget(size_t _targetOffset)
+			{
+				// todo integrate "canBeFreelyGenerated" or "bringUpSlot" for more high-level functionality
+				currentStack.push(targetStack[_targetOffset]);
+			}
+
+		};
+		Stack shuffledStack = _sourceStack;
+		// todo data not exposed, create way to concat stacks
+		Stack targetStack = Stack(_targetStackRest + _targetStackTop.data);
+		Shuffler<ShuffleOperations>::shuffle(shuffledStack, targetStack);
+		return shuffledStack;
+	}
 };
 
 }

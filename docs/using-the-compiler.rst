@@ -441,6 +441,7 @@ Input Description
         //   transientStorageLayout - Slots, offsets and types of the contract's state variables in transient storage.
         //   evm.assembly - New assembly format
         //   evm.legacyAssembly - Old-style assembly format in JSON
+        //   evm.bytecode.assemblyStructure - Structure of the bytecode, providing offsets, lengths and creation indicators.
         //   evm.bytecode.functionDebugData - Debugging information at function level
         //   evm.bytecode.object - Bytecode object
         //   evm.bytecode.opcodes - Opcodes list
@@ -603,6 +604,36 @@ Output Description
               "legacyAssembly": {},
               // Bytecode and related details.
               "bytecode": {
+                // Structure tree of the bytecode, providing information about the root (top-level) assembly including
+                // its nested assemblies.
+                "assemblyStructure": {
+                  // Indicates whether assembly in question in creation or runtime.
+                  "isCreation": true,
+                  // Size of the assembly in bytes.
+                  "length": 1595,
+                  // Start position of the assembly relatives to its parent.
+                  "start": 0,
+                  // List of nested assemblies (sub assemblies).
+                  "subAssemblies": [
+                    {
+                      "isCreation": false,
+                      "length": 684,
+                      "start": 877
+                    },
+                    {
+                      "isCreation": true,
+                      "length": 34,
+                      "start": 1561,
+                      "subAssemblies": [
+                        {
+                          "isCreation": false,
+                          "length": 8,
+                          "start": 26
+                        }
+                      ]
+                    }
+                  ]
+                },
                 // Debugging data at the level of functions.
                 "functionDebugData": {
                   // Now follows a set of functions including compiler-internal and

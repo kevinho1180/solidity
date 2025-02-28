@@ -1341,7 +1341,7 @@ LinkerObject const& Assembly::assembleLegacy() const
 		{
 			assembleInstruction([&](){
 				assertThrow(item.data() <= std::numeric_limits<size_t>::max(), AssemblyException, "");
-				auto s = subAssemblyById(static_cast<size_t>(item.data()))->assemble().bytecode.size();
+				auto s = subAssemblyById(static_cast<size_t>(item.data()))->assembleLegacy().bytecode.size();
 				item.setPushedValue(u256(s));
 				unsigned b = std::max<unsigned>(1, numberEncodingSize(s));
 				ret.bytecode.push_back(static_cast<uint8_t>(pushInstruction(b)));

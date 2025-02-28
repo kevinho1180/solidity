@@ -4,6 +4,8 @@ Language Features:
 
 
 Compiler Features:
+ * Commandline Interface: Add ``--assembly-structure`` option to provide information about assemblies and nested assemblies.
+ * Standard JSON Interface: Add ``evm.bytecode.assemblyStructure`` output that provides information about assemblies and nested assemblies.
 
 
 Bugfixes:

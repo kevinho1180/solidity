@@ -186,10 +186,11 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
 	static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
 	// auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
-	// todo for now I just require the stack top to be the ops inputs and leave the rest as-is
-	m_stackLayout[_blockId].operationIn[_operationIndex] = SSACFGStackLayout::Stack(_inputStack.data + requiredStackTop.data);
+	SSACFGStackLayoutStack operationInStack = _inputStack;
+	operationInStack.pushAll(requiredStackTop);
+	m_stackLayout[_blockId].operationIn[_operationIndex] = operationInStack;
 	// auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
-	auto stackOut = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
+	auto stackOut = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack);
 	// compress
 	{
 		while (stackOut.size() > 0)
@@ -246,7 +247,11 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 	if (requiresCleanStack(_jump.target))
 		m_stackLayout[_jump.target].stackIn = SSACFGStackLayout::Stack(targetLiveInSlots);
 	else
-		m_stackLayout[_jump.target].stackIn = SSACFGStackLayout::Stack(m_stackLayout[_source].stackOut.data + targetLiveInSlots);
+	{
+		SSACFGStackLayout::Stack stackIn(m_stackLayout[_source].stackOut);
+		stackIn.pushAll(SSACFGStackLayout::Stack{targetLiveInSlots});
+		m_stackLayout[_jump.target].stackIn = stackIn;
+	}
 	markBlockHasDefinedStackIn(_jump.target);
 }
 
@@ -275,7 +280,11 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 			// [phi^-1(liveInZero) - liveInNonZero, liveInNonZero]
 			m_stackLayout[_condJump.nonZero].stackIn = SSACFGStackLayout::Stack(remainingZeroLiveInSlots + nonZeroLiveInSlots);
 		else
-			m_stackLayout[_condJump.nonZero].stackIn = SSACFGStackLayout::Stack(m_stackLayout[_source].stackOut.data + nonZeroLiveInSlots);
+		{
+			SSACFGStackLayout::Stack stackIn(m_stackLayout[_source].stackOut);
+			stackIn.pushAll(SSACFGStackLayout::Stack(nonZeroLiveInSlots));
+			m_stackLayout[_condJump.nonZero].stackIn = stackIn;
+		}
 
 		// condition always has to be at the top
 		m_stackLayout[_condJump.nonZero].stackIn.push(_condJump.condition);
@@ -292,7 +301,11 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		if (requiresCleanStack(_condJump.zero))
 			m_stackLayout[_condJump.zero].stackIn = SSACFGStackLayout::Stack(zeroLiveInStackData);
 		else
-			m_stackLayout[_condJump.zero].stackIn = SSACFGStackLayout::Stack(m_stackLayout[_source].stackOut.data + zeroLiveInStackData);
+		{
+			SSACFGStackLayout::Stack stackIn(m_stackLayout[_source].stackOut);
+			stackIn.pushAll(SSACFGStackLayout::Stack(zeroLiveInStackData));
+			m_stackLayout[_condJump.zero].stackIn = stackIn;
+		}
 		markBlockHasDefinedStackIn(_condJump.zero);
 	}
 }

@@ -50,7 +50,7 @@ private:
 };
 
 template<typename Stack>
-concept SSACFGStack = requires(Stack _stack, size_t _depth, typename Stack::Slot _slot)
+concept SSACFGStack = requires(Stack _stack, Stack _otherStack, size_t _depth, typename Stack::Slot _slot)
 {
 	typename Stack::Slot;
 	{ _stack.top() } -> std::convertible_to<typename Stack::Slot>;
@@ -60,13 +60,15 @@ concept SSACFGStack = requires(Stack _stack, size_t _depth, typename Stack::Slot
 	{ _stack.slotIndex(_slot) } -> std::convertible_to<std::optional<size_t>>;
 	{ _stack.size() } -> std::convertible_to<size_t>;
 	{ _stack[_depth] } -> std::convertible_to<typename Stack::Slot>;
+	{ _stack.pushAll(_otherStack) } -> std::same_as<void>;
 	// we can iterate over a stack
 	{ ranges::range<ranges::range_value_t<Stack>> };
 	{ ranges::range_value_t<Stack>{} } -> std::convertible_to<typename Stack::Slot>;
 };
 
-struct SSACFGStackLayoutStack
+class SSACFGStackLayoutStack
 {
+public:
 	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID>;
 
 	SSACFGStackLayoutStack() = default;
@@ -143,9 +145,14 @@ struct SSACFGStackLayoutStack
 		return data.back();
 	}
 
+	void pushAll(SSACFGStackLayoutStack const& _other)
+	{
+		data += _other.data;
+	}
+
 	auto begin() const { return ranges::begin(data); }
 	auto end() const { return ranges::end(data); }
-
+private:
 	std::vector<Slot> data;
 };
 

@@ -115,6 +115,7 @@ private:
 class SSACFGEVMCodeTransform
 {
 public:
+	using Stack = SSACFGStackLayoutStack;
 	/// Use named labels for functions 1) Yes and check that the names are unique
 	/// 2) For none of the functions 3) for the first function of each name.
 	enum class UseNamedLabels { YesAndForceUnique, Never, ForFirstFunctionOfEachName };
@@ -169,7 +170,7 @@ private:
 	SSACFGStackLayout m_stackLayout;
 	std::vector<StackTooDeepError> m_stackErrors;
 	FunctionLabels const m_functionLabels;
-	ssacfg::Stack m_stack;
+	Stack m_stack;
 	std::vector<BlockData> m_blockData;
 	SSACFG::BlockId m_currentBlock;
 	std::vector<std::uint8_t> m_generatedBlocks;

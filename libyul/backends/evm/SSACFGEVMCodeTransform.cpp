@@ -80,6 +80,38 @@ std::string stackToStringLoc(SSACFG const& _cfg, std::vector<ssacfg::StackSlot> 
 {
 	return "[" + util::joinHumanReadable(_stack | ranges::views::transform([&](ssacfg::StackSlot const& _slot) { return stackSlotToStringLoc(_cfg, _slot); })) + "]";
 }
+
+class StackWithAssemblyOps
+{
+public:
+	using DataStack = SSACFGEVMCodeTransform::Stack;
+	StackWithAssemblyOps(AbstractAssembly& _assembly, DataStack& _stack):
+		m_assembly(_assembly),
+		m_dataStack(_stack)
+	{}
+
+	DataStack::Slot const& top() const { return m_dataStack.top(); }
+	void swap(size_t const _depth)
+	{
+		m_dataStack.swap(_depth);
+		m_assembly.appendInstruction(evmasm::swapInstruction(static_cast<unsigned>(_depth)));
+	}
+	void pop()
+	{
+		m_dataStack.pop();
+		m_assembly.appendInstruction(evmasm::Instruction::POP);
+	}
+	void push(DataStack::Slot const& _slot)
+	{
+		m_dataStack.push(_slot);
+		m_assembly.appendConstant(resolveLiteralValue(_value).value);
+	}
+private:
+	AbstractAssembly& m_assembly;
+	DataStack& m_dataStack;
+};
+static_assert(SSACFGStack<StackWithAssemblyOps>);
+
 }
 
 std::vector<ssacfg::StackSlot>

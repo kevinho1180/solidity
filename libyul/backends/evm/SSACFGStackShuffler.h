@@ -127,7 +127,8 @@ struct DanielShuffler
 {
 	using Stack = StackType;
 	using StackSlot = typename Stack::Slot;
-	static Stack shuffle(Stack const& _sourceStack, std::vector<StackSlot> const& _targetStackTop, std::vector<StackSlot> const& _targetStackRest = {})
+	// todo rest -> tail
+	static Stack shuffle(Stack const& _sourceStack, std::set<StackSlot> const& _targetStackRest, std::vector<StackSlot> const& _targetStackTop)
 	{
 		struct ShuffleOperations
 		{
@@ -196,7 +197,7 @@ struct DanielShuffler
 
 		};
 		Stack shuffledStack = _sourceStack;
-		auto const targetStack = _targetStackRest + _targetStackTop;
+		auto const targetStack = std::vector(_targetStackRest.begin(), _targetStackRest.end()) + _targetStackTop;
 		Shuffler<ShuffleOperations>::shuffle(shuffledStack, targetStack);
 		return shuffledStack;
 	}

@@ -131,38 +131,24 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	yulAssert(ranges::none_of(operationLiveOut, IsSSACFGLiteral(m_cfg)));
 
 	auto const liveOutWithoutOutputsSet = operationLiveOut - operation.outputs;
-	auto const liveOutWithoutOutputs = std::vector<SSACFGStackLayout::Slot>(liveOutWithoutOutputsSet.begin(), liveOutWithoutOutputsSet.end());
-	SSACFGStackLayout::Stack const requiredStackTop(std::vector<SSACFGStackLayout::Slot>(operation.inputs.begin(), operation.inputs.end()));
+	auto const liveOutWithoutOutputs = std::set<SSACFGStackLayout::Slot>(liveOutWithoutOutputsSet.begin(), liveOutWithoutOutputsSet.end());
+	std::vector<SSACFGStackLayout::Slot> const requiredStackTop(operation.inputs.begin(), operation.inputs.end());
 
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
 	static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
 	// auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
-	SSACFGStackLayoutStack operationInStack(liveOutWithoutOutputs);
-	operationInStack.pushAll(requiredStackTop);
-	m_stackLayout[_blockId].operationIn[_operationIndex] = operationInStack;
 	// auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
-	auto stackOut = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, operationInStack.stackData());
-	// compress
-	{
-		while (stackOut.size() > 0)
-		{
-			if (IsSSACFGLiteral(m_cfg)(stackOut.top()))
-				stackOut.pop();
-			else if (auto offset = util::findOffset(stackOut | ranges::views::reverse | ranges::views::drop(1), stackOut.top()))
-			{
-				if (*offset + 2 < 16) // todo non-eof specific and why +2?
-					stackOut.pop();
-				else
-					break;
-			}
-			else
-				break;
-		}
-	}
-	return stackOut;
+	auto stack = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, liveOutWithoutOutputs, requiredStackTop);
+	m_stackLayout[_blockId].operationIn[_operationIndex] = stack;
+
+	for (size_t i = 0; i < operation.inputs.size(); ++i)
+		stack.pop();
+	for (auto const& val: operation.outputs)
+		stack.push(val);
+	return stack;
 }
 
-
+// todo better name here :)
 void SSACFGStackLayoutGenerator::populateBlockExitStackIn(SSACFG::BlockId const _blockId)
 {
 	std::visit(util::GenericVisitor{
@@ -186,7 +172,9 @@ void SSACFGStackLayoutGenerator::populateBlockExitStackIn(SSACFG::BlockId const 
 
 
 void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
-	SSACFG::BlockId const _source, SSACFG::BasicBlock::Jump const& _jump)
+	SSACFG::BlockId const _source,
+	SSACFG::BasicBlock::Jump const& _jump
+)
 {
 	if (blockHasDefinedStackIn(_jump.target))
 		return;
@@ -194,14 +182,13 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 	auto const& targetLiveIn = m_liveness.liveIn(_jump.target);
 	yulAssert(ranges::none_of(targetLiveIn, IsSSACFGLiteral(m_cfg)));
 
-	std::vector<SSACFGStackLayout::Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
+	std::set<SSACFGStackLayout::Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
+	// todo shuffle to
 	if (requiresCleanStack(_jump.target))
-		m_stackLayout[_jump.target].stackIn = SSACFGStackLayout::Stack(targetLiveInSlots);
+		m_stackLayout[_jump.target].stackIn = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(m_stackLayout[_source].stackOut, targetLiveInSlots, {});
 	else
 	{
-		SSACFGStackLayout::Stack stackIn(m_stackLayout[_source].stackOut);
-		stackIn.pushAll(SSACFGStackLayout::Stack{targetLiveInSlots});
-		m_stackLayout[_jump.target].stackIn = stackIn;
+		yulAssert(false);
 	}
 	markBlockHasDefinedStackIn(_jump.target);
 }
@@ -232,13 +219,8 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 			m_stackLayout[_condJump.nonZero].stackIn = SSACFGStackLayout::Stack(remainingZeroLiveInSlots + nonZeroLiveInSlots);
 		else
 		{
-			SSACFGStackLayout::Stack stackIn(m_stackLayout[_source].stackOut);
-			stackIn.pushAll(SSACFGStackLayout::Stack(nonZeroLiveInSlots));
-			m_stackLayout[_condJump.nonZero].stackIn = stackIn;
+			yulAssert(false);
 		}
-
-		// condition always has to be at the top
-		m_stackLayout[_condJump.nonZero].stackIn.push(_condJump.condition);
 
 		markBlockHasDefinedStackIn(_condJump.nonZero);
 	}
@@ -253,9 +235,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 			m_stackLayout[_condJump.zero].stackIn = SSACFGStackLayout::Stack(zeroLiveInStackData);
 		else
 		{
-			SSACFGStackLayout::Stack stackIn(m_stackLayout[_source].stackOut);
-			stackIn.pushAll(SSACFGStackLayout::Stack(zeroLiveInStackData));
-			m_stackLayout[_condJump.zero].stackIn = stackIn;
+			yulAssert(false);
 		}
 		markBlockHasDefinedStackIn(_condJump.zero);
 	}

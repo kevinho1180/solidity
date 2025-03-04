@@ -117,6 +117,7 @@ public:
 		return offset.has_value();
 	}
 
+	// todo rename to slotDepth
 	std::optional<size_t> slotIndex(Slot const& _value) const
 	{
 		auto const offset = util::findOffset(m_data | ranges::views::reverse, _value);

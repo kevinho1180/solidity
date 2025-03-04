@@ -34,56 +34,6 @@
 
 using namespace solidity::yul;
 
-namespace
-{
-class IsLiteral
-{
-public:
-	explicit IsLiteral(SSACFG const& _cfg): m_cfg(_cfg) {}
-
-	bool operator()(SSACFG::ValueId const _valueId) const { return m_cfg.isLiteralValue(_valueId); }
-	bool operator()(SSACFGStackLayout::Slot const& _slot) const
-	{
-		return std::holds_alternative<SSACFG::ValueId>(_slot) && (*this)(std::get<SSACFG::ValueId>(_slot));
-	}
-
-private:
-	SSACFG const& m_cfg;
-};
-
-/// Checks whether the operation is builtin and if it is considered commutative in the first two arguments.
-/*bool operationIsTwoCommutativeBuiltin(SSACFG::Operation const& _operation)
-{
-	if (!std::holds_alternative<SSACFG::BuiltinCall>(_operation.kind))
-		return false;
-
-	BuiltinFunction const& builtin = std::get<SSACFG::BuiltinCall>(_operation.kind).builtin.get();
-	static std::array constexpr twoCommutativeBuiltins{"add", "addmod", "mul", "mulmod", "eq", "and", "or", "xor"};
-	return ranges::find(twoCommutativeBuiltins, builtin.name) != twoCommutativeBuiltins.end();
-}*/
-
-struct StackShuffleResult
-{
-	SSACFGStackLayout::Stack outputStack;
-	std::optional<size_t> estimatedGasCosts = std::nullopt;
-};
-
-/// shuffles `_source` stack to the point where the `_requiredTop` of the `_target` is met and the rest is in arbitrary order
-template<SSACFGStackShuffler Shuffler>
-StackShuffleResult shuffleStack(
-	SSACFGStackLayout::Stack const& _source,
-	SSACFGStackLayout::Stack const& _targetTop,
-	std::set<SSACFGStackLayout::Slot> const& _targetRest,
-	ReversePhiFunctionTransform const& _phiFunctionTransform = {}
-)
-{
-	// todo
-	//return {_target};
-	return {};
-}
-
-}
-
 ControlFlowLayout SSACFGStackLayoutGenerator::generate(ControlFlowLiveness const& _controlFlowLiveness)
 {
 	ControlFlowLayout layout;
@@ -133,6 +83,7 @@ SSACFGStackLayoutGenerator::~SSACFGStackLayoutGenerator() = default;
 
 bool SSACFGStackLayoutGenerator::requiresCleanStack(SSACFG::BlockId const _block) const
 {
+	return true;
 	// todo extend to cut edges
 	util::GenericVisitor constexpr exitVisitor{
 		[&](SSACFG::BasicBlock::MainExit const&) { return false; },
@@ -177,7 +128,7 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	auto const& operationLiveOut = m_liveness.operationsLiveOut(_blockId)[_operationIndex];
 
 	// literals should have been pulled out a priori and now are treated as push constants
-	yulAssert(ranges::none_of(operationLiveOut, IsLiteral(m_cfg)));
+	yulAssert(ranges::none_of(operationLiveOut, IsSSACFGLiteral(m_cfg)));
 
 	auto const liveOutWithoutOutputsSet = operationLiveOut - operation.outputs;
 	auto const liveOutWithoutOutputs = std::vector<SSACFGStackLayout::Slot>(liveOutWithoutOutputsSet.begin(), liveOutWithoutOutputsSet.end());
@@ -186,16 +137,16 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
 	static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
 	// auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
-	SSACFGStackLayoutStack operationInStack = _inputStack;
+	SSACFGStackLayoutStack operationInStack(liveOutWithoutOutputs);
 	operationInStack.pushAll(requiredStackTop);
 	m_stackLayout[_blockId].operationIn[_operationIndex] = operationInStack;
 	// auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
-	auto stackOut = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack);
+	auto stackOut = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, operationInStack.stackData());
 	// compress
 	{
 		while (stackOut.size() > 0)
 		{
-			if (IsLiteral(m_cfg)(stackOut.top()))
+			if (IsSSACFGLiteral(m_cfg)(stackOut.top()))
 				stackOut.pop();
 			else if (auto offset = util::findOffset(stackOut | ranges::views::reverse | ranges::views::drop(1), stackOut.top()))
 			{
@@ -241,7 +192,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 		return;
 
 	auto const& targetLiveIn = m_liveness.liveIn(_jump.target);
-	yulAssert(ranges::none_of(targetLiveIn, IsLiteral(m_cfg)));
+	yulAssert(ranges::none_of(targetLiveIn, IsSSACFGLiteral(m_cfg)));
 
 	std::vector<SSACFGStackLayout::Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
 	if (requiresCleanStack(_jump.target))
@@ -266,9 +217,9 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 	if (!blockHasDefinedStackIn(_condJump.nonZero))
 	{
 		auto const& zeroLiveIn = m_liveness.liveIn(_condJump.zero);
-		yulAssert(ranges::none_of(zeroLiveIn, IsLiteral(m_cfg)));
+		yulAssert(ranges::none_of(zeroLiveIn, IsSSACFGLiteral(m_cfg)));
 		auto const& nonZeroLiveIn = m_liveness.liveIn(_condJump.nonZero);
-		yulAssert(ranges::none_of(nonZeroLiveIn, IsLiteral(m_cfg)));
+		yulAssert(ranges::none_of(nonZeroLiveIn, IsSSACFGLiteral(m_cfg)));
 
 		auto const pulledBackZeroLiveIn = zeroLiveIn | ranges::views::transform(ReversePhiFunctionTransform(m_cfg, _source, _condJump.zero)) | ranges::to<std::set>;
 
@@ -295,7 +246,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 	if (!blockHasDefinedStackIn(_condJump.zero))
 	{
 		auto const& zeroLiveIn = m_liveness.liveIn(_condJump.zero);
-		yulAssert(ranges::none_of(zeroLiveIn, IsLiteral(m_cfg)));
+		yulAssert(ranges::none_of(zeroLiveIn, IsSSACFGLiteral(m_cfg)));
 
 		std::vector<SSACFGStackLayout::Slot> const zeroLiveInStackData(zeroLiveIn.begin(), zeroLiveIn.end());
 		if (requiresCleanStack(_condJump.zero))

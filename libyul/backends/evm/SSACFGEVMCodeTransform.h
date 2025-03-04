@@ -148,6 +148,7 @@ private:
 	void transformFunction(Scope::Function const& _function);
 
 	void operator()(SSACFG::BlockId _block);
+	void performOperation(SSACFG::Operation const& _operation);
 
 	AbstractAssembly::LabelID functionLabel(Scope::Function const& _function) const
 	{

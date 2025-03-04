@@ -27,6 +27,21 @@ struct ControlFlowLiveness;
 struct ControlFlow;
 class SSACFGLiveness;
 
+class IsSSACFGLiteral
+{
+public:
+	explicit IsSSACFGLiteral(SSACFG const& _cfg): m_cfg(_cfg) {}
+
+	bool operator()(SSACFG::ValueId const _valueId) const { return m_cfg.isLiteralValue(_valueId); }
+	bool operator()(SSACFGStackLayout::Slot const& _slot) const
+	{
+		return std::holds_alternative<SSACFG::ValueId>(_slot) && (*this)(std::get<SSACFG::ValueId>(_slot));
+	}
+
+private:
+	SSACFG const& m_cfg;
+};
+
 class SSACFGStackLayoutGenerator {
 public:
 	static ControlFlowLayout generate(ControlFlowLiveness const& _controlFlowLiveness);

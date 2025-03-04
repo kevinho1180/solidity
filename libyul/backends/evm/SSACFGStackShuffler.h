@@ -127,21 +127,21 @@ struct DanielShuffler
 {
 	using Stack = StackType;
 	using StackSlot = typename Stack::Slot;
-	static Stack shuffle(Stack const& _sourceStack, Stack const& _targetStackTop, Stack const& _targetStackRest)
+	static Stack shuffle(Stack const& _sourceStack, std::vector<StackSlot> const& _targetStackTop, std::vector<StackSlot> const& _targetStackRest = {})
 	{
 		struct ShuffleOperations
 		{
 			Stack& currentStack;
 			std::map<StackSlot, size_t> sourceCounts;
-			Stack const& targetStack;
+			std::vector<StackSlot> const& targetStack;
 			std::map<StackSlot, size_t> targetCounts;
 
 			ShuffleOperations(
 				Stack& _currentStack,
-				Stack const& _targetStack
+				std::vector<StackSlot> const& _targetStack
 			): currentStack(_currentStack), targetStack(_targetStack)
 			{
-				auto const histogram = [](Stack const& _stack)
+				auto const histogram = [](auto const& _stack)
 				{
 					std::map<StackSlot, size_t> counts;
 					for (auto const& targetSlot: _stack)
@@ -191,14 +191,12 @@ struct DanielShuffler
 
 			void pushOrDupTarget(size_t _targetOffset)
 			{
-				// todo integrate "canBeFreelyGenerated" or "bringUpSlot" for more high-level functionality
-				currentStack.push(targetStack[_targetOffset]);
+				currentStack.pushOrDup(targetStack[_targetOffset]);
 			}
 
 		};
 		Stack shuffledStack = _sourceStack;
-		Stack targetStack(_targetStackRest);
-		targetStack.pushAll(_targetStackTop);
+		auto const targetStack = _targetStackRest + _targetStackTop;
 		Shuffler<ShuffleOperations>::shuffle(shuffledStack, targetStack);
 		return shuffledStack;
 	}

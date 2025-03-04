@@ -45,6 +45,17 @@ public:
 	bool noOp() const;
 	SSACFG::ValueId operator()(SSACFG::ValueId _valueId) const;
 
+	// if we have a variant with value id contained in the type union
+	template<typename... T>
+	std::variant<T...> operator()(std::variant<T...> const& _someSlot) const
+	{
+		static bool constexpr variantContainsValueId = std::disjunction_v<std::is_same<SSACFG::ValueId, T>...>;
+		static_assert(variantContainsValueId);
+		if (auto valueId = std::get_if<SSACFG::ValueId>(&_someSlot))
+			return (*this)(*valueId);
+		return _someSlot;
+	}
+
 private:
 	std::map<SSACFG::ValueId, SSACFG::ValueId> m_reversePhiMap = {};
 };
@@ -57,6 +68,7 @@ concept SSACFGStack = requires(Stack _stack, Stack _otherStack, size_t _depth, t
 	{ _stack.swap(_depth) } -> std::same_as<void>;
 	{ _stack.pop() } -> std::same_as<void>;
 	{ _stack.push(_slot) } -> std::same_as<void>;
+	{ _stack.pushOrDup(_slot) } -> std::same_as<void>;
 	{ _stack.slotIndex(_slot) } -> std::convertible_to<std::optional<size_t>>;
 	{ _stack.size() } -> std::convertible_to<size_t>;
 	{ _stack[_depth] } -> std::convertible_to<typename Stack::Slot>;
@@ -72,29 +84,29 @@ public:
 	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID>;
 
 	SSACFGStackLayoutStack() = default;
-	explicit SSACFGStackLayoutStack(std::vector<Slot> _stack): data(std::move(_stack)) {}
+	explicit SSACFGStackLayoutStack(std::vector<Slot> _stack): m_data(std::move(_stack)) {}
 
 	void swap(size_t const _depth)
 	{
-		yulAssert(data.size() > _depth);
-		std::swap(data[data.size() - _depth - 1], data.back());
+		yulAssert(m_data.size() > _depth);
+		std::swap(m_data[m_data.size() - _depth - 1], m_data.back());
 	}
 
 	void pop()
 	{
-		yulAssert(!data.empty());
-		data.pop_back();
+		yulAssert(!m_data.empty());
+		m_data.pop_back();
 	}
 
 	void push(Slot const& _value)
 	{
-		data.emplace_back(_value);
+		m_data.emplace_back(_value);
 	}
 
 	void dup(size_t const _depth)
 	{
-		yulAssert(data.size() >= _depth + 1);
-		data.push_back(data[data.size() - _depth - 1]);
+		yulAssert(m_data.size() >= _depth + 1);
+		m_data.push_back(m_data[m_data.size() - _depth - 1]);
 	}
 
 	bool dup(Slot const& _value)
@@ -107,11 +119,11 @@ public:
 
 	std::optional<size_t> slotIndex(Slot const& _value) const
 	{
-		auto const offset = util::findOffset(data | ranges::views::reverse, _value);
+		auto const offset = util::findOffset(m_data | ranges::views::reverse, _value);
 		if (offset)
 		{
-			yulAssert(data.size() >= *offset + 1);
-			yulAssert(data[data.size() - *offset - 1] == _value);
+			yulAssert(m_data.size() >= *offset + 1);
+			yulAssert(m_data[m_data.size() - *offset - 1] == _value);
 		}
 		return offset;
 	}
@@ -124,38 +136,45 @@ public:
 					push(_value);
 			},
 			[&](AbstractAssembly::LabelID _label) {
-				data.emplace_back(_label);
+				m_data.emplace_back(_label);
 			}
 		}, _slot);
 	}
 
+	void pushOrDup(Slot const& _slot)
+	{
+		bringUpSlot(_slot);
+	}
+
 	size_t size() const
 	{
-		return data.size();
+		return m_data.size();
 	}
 
 	Slot const& operator[](size_t const _index) const
 	{
-		return data[_index];
+		return m_data[_index];
 	}
 
 	Slot const& top() const
 	{
-		yulAssert(!data.empty());
-		return data.back();
+		yulAssert(!m_data.empty());
+		return m_data.back();
 	}
 
 	void pushAll(SSACFGStackLayoutStack const& _other)
 	{
-		data += _other.data;
+		m_data += _other.m_data;
 	}
 
-	auto begin() const { return ranges::begin(data); }
-	auto end() const { return ranges::end(data); }
+	auto begin() const { return ranges::begin(m_data); }
+	auto end() const { return ranges::end(m_data); }
 
 	auto operator<=>(SSACFGStackLayoutStack const&) const = default;
+
+	std::vector<Slot> const& stackData() const { return m_data; }
 private:
-	std::vector<Slot> data;
+	std::vector<Slot> m_data;
 };
 
 static_assert(SSACFGStack<SSACFGStackLayoutStack>);

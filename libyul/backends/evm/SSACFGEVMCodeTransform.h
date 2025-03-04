@@ -129,12 +129,6 @@ public:
 
 private:
 	using FunctionLabels = std::map<Scope::Function const*, AbstractAssembly::LabelID>;
-	struct BlockData {
-		bool generated = false;
-		std::optional<AbstractAssembly::LabelID> label;
-		std::optional<std::vector<ssacfg::StackSlot>> stackIn;
-		//std::optional<std::vector<StackSlot>> stackOut;
-	};
 
 	static FunctionLabels registerFunctionLabels(
 		AbstractAssembly& _assembly,
@@ -154,10 +148,7 @@ private:
 	void transformFunction(Scope::Function const& _function);
 
 	void operator()(SSACFG::BlockId _block);
-	void operator()(SSACFG::Operation const& _operation, std::set<SSACFG::ValueId> const& _liveOut);
 
-	BlockData& blockData(SSACFG::BlockId const _block) { return m_blockData[_block.value]; }
-	BlockData const& blockData(SSACFG::BlockId const _block) const { return m_blockData[_block.value]; }
 	AbstractAssembly::LabelID functionLabel(Scope::Function const& _function) const
 	{
 		return m_functionLabels.at(&_function);
@@ -170,10 +161,10 @@ private:
 	SSACFGStackLayout m_stackLayout;
 	std::vector<StackTooDeepError> m_stackErrors;
 	FunctionLabels const m_functionLabels;
-	Stack m_stack;
-	std::vector<BlockData> m_blockData;
+	Stack m_stack {};
 	SSACFG::BlockId m_currentBlock;
 	std::vector<std::uint8_t> m_generatedBlocks;
+	std::vector<std::optional<AbstractAssembly::LabelID>> m_blockLabels;
 };
 
 }

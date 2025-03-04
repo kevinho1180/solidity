@@ -152,6 +152,8 @@ public:
 
 	auto begin() const { return ranges::begin(data); }
 	auto end() const { return ranges::end(data); }
+
+	auto operator<=>(SSACFGStackLayoutStack const&) const = default;
 private:
 	std::vector<Slot> data;
 };

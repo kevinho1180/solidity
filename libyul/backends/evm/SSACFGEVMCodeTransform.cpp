@@ -65,7 +65,7 @@ std::string ssaCfgVarToString(SSACFG const& _cfg, SSACFG::ValueId _var)
 	);
 }
 
-std::string stackSlotToStringLoc(SSACFG const& _cfg, ssacfg::StackSlot const& _slot)
+std::string stackSlotToStringLoc(SSACFG const& _cfg, SSACFGEVMCodeTransform::Stack::Slot const& _slot)
 {
 	return std::visit(util::GenericVisitor{
 		[&](SSACFG::ValueId _value) {
@@ -81,16 +81,30 @@ std::string stackToStringLoc(SSACFG const& _cfg, std::vector<ssacfg::StackSlot> 
 	return "[" + util::joinHumanReadable(_stack | ranges::views::transform([&](ssacfg::StackSlot const& _slot) { return stackSlotToStringLoc(_cfg, _slot); })) + "]";
 }
 
+SSACFG::LiteralValue resolveLiteralValue(ssacfg::StackSlot const& _slot, SSACFG const& _cfg)
+{
+	yulAssert(std::holds_alternative<SSACFG::ValueId>(_slot));
+	auto const& valueId = std::get<SSACFG::ValueId>(_slot);
+	return std::visit(util::GenericVisitor{
+			[&](SSACFG::LiteralValue const& _literal) {
+				return _literal;
+			},
+			[&](auto const&) -> SSACFG::LiteralValue { solAssert(false, fmt::format("Tried bringing up v{}", valueId.value)); }
+	}, _cfg.valueInfo(valueId));
+}
+
 class StackWithAssemblyOps
 {
 public:
 	using DataStack = SSACFGEVMCodeTransform::Stack;
-	StackWithAssemblyOps(AbstractAssembly& _assembly, DataStack& _stack):
+	using Slot = DataStack::Slot;
+	StackWithAssemblyOps(SSACFG const& _cfg, AbstractAssembly& _assembly, DataStack& _stack):
+ 		m_cfg(_cfg),
 		m_assembly(_assembly),
 		m_dataStack(_stack)
 	{}
 
-	DataStack::Slot const& top() const { return m_dataStack.top(); }
+	Slot const& top() const { return m_dataStack.top(); }
 	void swap(size_t const _depth)
 	{
 		m_dataStack.swap(_depth);
@@ -101,12 +115,30 @@ public:
 		m_dataStack.pop();
 		m_assembly.appendInstruction(evmasm::Instruction::POP);
 	}
-	void push(DataStack::Slot const& _slot)
+	void push(Slot const& _slot)
 	{
 		m_dataStack.push(_slot);
-		m_assembly.appendConstant(resolveLiteralValue(_value).value);
+		m_assembly.appendConstant(resolveLiteralValue(_slot, m_cfg).value);
 	}
+
+	std::optional<size_t> slotIndex(Slot const& _slot) const {
+		return m_dataStack.slotIndex(_slot);
+	}
+
+	size_t size() const { return m_dataStack.size(); }
+
+	Slot const& operator[](size_t const _depth) const { return m_dataStack[_depth]; }
+
+	void pushAll(StackWithAssemblyOps const& _other) {
+		yulAssert(&_other.m_assembly == &m_assembly);
+		m_dataStack.pushAll(_other.m_dataStack);
+	}
+
+
+	auto begin() const { return ranges::begin(m_dataStack); }
+	auto end() const { return ranges::end(m_dataStack); }
 private:
+	SSACFG const& m_cfg;
 	AbstractAssembly& m_assembly;
 	DataStack& m_dataStack;
 };
@@ -402,8 +434,7 @@ std::vector<StackTooDeepError> SSACFGEVMCodeTransform::run(
 	);
 
 	// Force main entry block to start from an empty stack.
-	mainCodeTransform.blockData(SSACFG::BlockId{0}).stackIn = std::make_optional<std::vector<ssacfg::StackSlot>>();
-	mainCodeTransform(SSACFG::BlockId{0});
+	mainCodeTransform(controlFlow.mainGraph->entry);
 
 	std::vector<StackTooDeepError> stackErrors;
 	if (!mainCodeTransform.m_stackErrors.empty())
@@ -471,9 +502,8 @@ SSACFGEVMCodeTransform::SSACFGEVMCodeTransform
 	m_liveness(_liveness),
 	m_stackLayout(SSACFGStackLayoutGenerator::generate(_liveness)),
 	m_functionLabels(std::move(_functionLabels)),
-	m_stack(_assembly, _cfg),
-	m_blockData(_cfg.numBlocks()),
-	m_generatedBlocks(_cfg.numBlocks(), false)
+	m_generatedBlocks(_cfg.numBlocks(), false),
+	m_blockLabels(_cfg.numBlocks(), std::nullopt)
 { }
 
 void SSACFGEVMCodeTransform::transformFunction(Scope::Function const& _function)
@@ -483,7 +513,6 @@ void SSACFGEVMCodeTransform::transformFunction(Scope::Function const& _function)
 	if constexpr (debugOutput)
 		std::cout << "Generating code for function " << _function.name.str() << ", label=" << label << std::endl;
 	m_assembly.appendLabel(label);
-	blockData(m_cfg.entry).stackIn = m_cfg.arguments | ranges::views::reverse | ranges::views::transform([](auto&& _tuple) { return std::get<1>(_tuple); }) | ranges::to<std::vector<ssacfg::StackSlot>>;
 	(*this)(m_cfg.entry);
 }
 
@@ -499,30 +528,56 @@ bool SSACFGEVMCodeTransform::requiresCleanStack(SSACFG::BlockId const _block) co
 
 void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 {
-	yulAssert(!m_generatedBlocks[_block.value]);
+	yulAssert(!m_generatedBlocks[_block.value], "Each block is transformed exactly once.");
 	m_generatedBlocks[_block.value] = true;
 
-	ScopedSaveAndRestore stackSave{m_stack, ssacfg::Stack{m_assembly, m_cfg}};
-
-	auto& data = blockData(_block);
-	if (!data.label)
-		data.label = m_assembly.newLabelId();
-	m_assembly.appendLabel(*data.label);
-
-	if constexpr (debugOutput)
-		std::cout << "\tGenerating for Block " << _block.value << " with label " << data.label.value() << std::endl;
+	ScopedSaveAndRestore stackSave{m_stack, Stack{}};
 
 	{
-		// copy stackIn into stack
-		yulAssert(data.stackIn, fmt::format("No starting layout for block id {}", _block.value));
-		m_stack = ssacfg::Stack{m_assembly, m_cfg, *data.stackIn};
+		auto& maybeBlockLabel = m_blockLabels[_block.value];
+		if (!maybeBlockLabel)
+			maybeBlockLabel = m_assembly.newLabelId();
+		m_assembly.appendLabel(*maybeBlockLabel);
+
+		if constexpr (debugOutput)
+			std::cout << "\tGenerating for Block " << _block.value << " with label " << *maybeBlockLabel << std::endl;
 	}
+
+	auto const& blockLayout = m_stackLayout[_block];
+	yulAssert(blockLayout.stackIn == m_stack);
+	yulAssert(static_cast<int>(m_stack.size()) == m_assembly.stackHeight());
 
 	m_assembly.setStackHeight(static_cast<int>(m_stack.size()));
 	// check that we have as much liveness info as there are ops in the block
 	yulAssert(m_cfg.block(_block).operations.size() == m_liveness.operationsLiveOut(_block).size());
 
 	// for each op with respective live-out, descend into op
+	for (auto const& [operation, operationStackIn]: ranges::views::zip( m_cfg.block(_block).operations, blockLayout.operationIn))
+	{
+		// Create required layout for entering the operation.
+		createStackLayout(debugDataOf(operation), operationStackIn);
+
+		// Assert that we have the inputs of the operation on stack top.
+		yulAssert(static_cast<int>(m_stack.size()) == m_assembly.stackHeight());
+		yulAssert(m_stack.size() >= operation.input.size(), "");
+		size_t baseHeight = m_stack.size() - operation.input.size();
+		assertLayoutCompatibility(
+			m_stack | ranges::views::take_last(operation.input.size()) | ranges::to<Stack>,
+			operation.input
+		);
+
+		// Perform the operation.
+		std::visit(*this, operation.operation);
+
+		// Assert that the operation produced its proclaimed output.
+		yulAssert(static_cast<int>(m_stack.size()) == m_assembly.stackHeight(), "");
+		yulAssert(m_stack.size() == baseHeight + operation.output.size(), "");
+		yulAssert(m_stack.size() >= operation.output.size(), "");
+		assertLayoutCompatibility(
+			m_stack | ranges::views::take_last(operation.output.size()) | ranges::to<Stack>,
+			operation.output
+		);
+	}
 	for (auto&& [op, liveOut]: ranges::zip_view(m_cfg.block(_block).operations, m_liveness.operationsLiveOut(_block)))
 		(*this)(op, liveOut);
 

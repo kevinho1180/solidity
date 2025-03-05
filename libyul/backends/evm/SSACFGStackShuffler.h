@@ -130,6 +130,7 @@ struct DanielShuffler
 	{
 		struct ShuffleOperations
 		{
+			size_t const reachableStackDepth = 16;
 			Stack& currentStack;
 			std::map<StackSlot, size_t> sourceCounts;
 			std::vector<StackSlot> const& targetStack;

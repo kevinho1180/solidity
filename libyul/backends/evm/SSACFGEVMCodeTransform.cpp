@@ -76,6 +76,11 @@ std::string stackSlotToStringLoc(SSACFG const& _cfg, SSACFGEVMCodeTransform::Sta
 		},
 		[](AbstractAssembly::LabelID _label) {
 			return "LABEL[" + std::to_string(_label) + "]";
+		},
+		[](SSACFGFunctionReturnLabel const& _functionReturnLabel)
+		{
+			yulAssert(_functionReturnLabel.function, "Function return label was null.");
+			return fmt::format("ReturnLabel[{}]", _functionReturnLabel.function->name.str());
 		}
 	}, _slot);
 }
@@ -124,18 +129,13 @@ public:
 		m_assembly.appendConstant(resolveLiteralValue(_slot, m_cfg).value);
 	}
 
-	std::optional<size_t> slotIndex(Slot const& _slot) const {
-		return m_dataStack.slotIndex(_slot);
+	std::optional<size_t> slotDepth(Slot const& _slot) const {
+		return m_dataStack.slotDepth(_slot);
 	}
 
 	size_t size() const { return m_dataStack.size(); }
 
 	Slot const& operator[](size_t const _index) const { return m_dataStack[_index]; }
-
-	void pushAll(StackWithAssemblyOps const& _other) {
-		yulAssert(&_other.m_assembly == &m_assembly);
-		m_dataStack.pushAll(_other.m_dataStack);
-	}
 
 	void pushOrDup(Slot const& _slot)
 	{
@@ -143,16 +143,20 @@ public:
 			[&](SSACFG::ValueId _value) {
 				if (!m_cfg.isLiteralValue(_value))
 				{
-					auto const slotIndexValue = slotIndex(_slot);
-					yulAssert(slotIndexValue, fmt::format("Tried bringing up {}", ssaCfgVarToString(m_cfg, _value)));
-					m_assembly.appendInstruction(evmasm::dupInstruction(static_cast<unsigned>(*slotIndexValue + 1)));
-					m_dataStack.dup(*slotIndexValue);
+					auto const depth = slotDepth(_slot);
+					yulAssert(depth, fmt::format("Tried bringing up {}", ssaCfgVarToString(m_cfg, _value)));
+					m_assembly.appendInstruction(evmasm::dupInstruction(static_cast<unsigned>(*depth + 1)));
+					m_dataStack.dup(*depth);
 				}
 				else
 					push(_value);
 			},
 			[&](AbstractAssembly::LabelID const _label) {
 				m_assembly.appendLabelReference(_label);
+			},
+			[&](SSACFGFunctionReturnLabel const&)
+			{
+				yulAssert(false, "Function return label cannot be produced but must be already set in stack layout generation.");
 			}
 		}, _slot);
 	}

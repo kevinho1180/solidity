@@ -69,19 +69,25 @@ concept SSACFGStack = requires(Stack _stack, Stack _otherStack, size_t _depth, t
 	{ _stack.pop() } -> std::same_as<void>;
 	{ _stack.push(_slot) } -> std::same_as<void>;
 	{ _stack.pushOrDup(_slot) } -> std::same_as<void>;
-	{ _stack.slotIndex(_slot) } -> std::convertible_to<std::optional<size_t>>;
+	{ _stack.slotDepth(_slot) } -> std::convertible_to<std::optional<size_t>>;
 	{ _stack.size() } -> std::convertible_to<size_t>;
 	{ _stack[_depth] } -> std::convertible_to<typename Stack::Slot>;
-	{ _stack.pushAll(_otherStack) } -> std::same_as<void>;
 	// we can iterate over a stack
 	{ ranges::range<ranges::range_value_t<Stack>> };
 	{ ranges::range_value_t<Stack>{} } -> std::convertible_to<typename Stack::Slot>;
 };
 
+
+struct SSACFGFunctionReturnLabel
+{
+	Scope::Function const* function;
+	auto operator<=>(SSACFGFunctionReturnLabel const&) const = default;
+};
+
 class SSACFGStackLayoutStack
 {
 public:
-	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID>;
+	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID, SSACFGFunctionReturnLabel>;
 
 	SSACFGStackLayoutStack() = default;
 	explicit SSACFGStackLayoutStack(std::vector<Slot> _stack): m_data(std::move(_stack)) {}
@@ -111,14 +117,13 @@ public:
 
 	bool dup(Slot const& _value)
 	{
-		auto offset = slotIndex(_value);
-		if (offset)
-			dup(*offset);
-		return offset.has_value();
+		auto depth = slotDepth(_value);
+		if (depth)
+			dup(*depth);
+		return depth.has_value();
 	}
 
-	// todo rename to slotDepth
-	std::optional<size_t> slotIndex(Slot const& _value) const
+	std::optional<size_t> slotDepth(Slot const& _value) const
 	{
 		auto const offset = util::findOffset(m_data | ranges::views::reverse, _value);
 		if (offset)
@@ -137,6 +142,10 @@ public:
 					push(_value);
 			},
 			[&](AbstractAssembly::LabelID _label) {
+				m_data.emplace_back(_label);
+			},
+			[&](SSACFGFunctionReturnLabel const& _label)
+			{
 				m_data.emplace_back(_label);
 			}
 		}, _slot);
@@ -161,11 +170,6 @@ public:
 	{
 		yulAssert(!m_data.empty());
 		return m_data.back();
-	}
-
-	void pushAll(SSACFGStackLayoutStack const& _other)
-	{
-		m_data += _other.m_data;
 	}
 
 	auto begin() const { return ranges::begin(m_data); }

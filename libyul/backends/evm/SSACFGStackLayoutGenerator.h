@@ -60,7 +60,7 @@ private:
 		SSACFGStackLayout::Stack const& _inputStack
 	);
 
-	void populateBlockExitStackIn(SSACFG::BlockId _blockId);
+	void populateBlockSuccessorStackIn(SSACFG::BlockId _blockId);
 	void populateStackInFromJumpExit(SSACFG::BlockId _source, SSACFG::BasicBlock::Jump const& _jump);
 	void populateStackInFromConditionalJumpExit(
 		SSACFG::BlockId _source,

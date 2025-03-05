@@ -114,7 +114,7 @@ void SSACFGStackLayoutGenerator::visitBlock(SSACFG::BlockId const _blockId)
 	m_stackLayout[_blockId].stackOut = currentStack;
 
 	markBlockGenerated(_blockId);
-	populateBlockExitStackIn(_blockId);
+	populateBlockSuccessorStackIn(_blockId);
 }
 
 SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
@@ -136,6 +136,7 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
 	static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
+	static_assert(SSACFGStackShuffler<DanielShuffler<SSACFGStackLayout::Stack>>, "Daniel shuffler conforms to SSACFGStackShuffler concept.");
 	// auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
 	// auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
 	auto stack = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, liveOutWithoutOutputs, requiredStackTop);
@@ -149,7 +150,7 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 }
 
 // todo better name here :)
-void SSACFGStackLayoutGenerator::populateBlockExitStackIn(SSACFG::BlockId const _blockId)
+void SSACFGStackLayoutGenerator::populateBlockSuccessorStackIn(SSACFG::BlockId const _blockId)
 {
 	std::visit(util::GenericVisitor{
 		[](SSACFG::BasicBlock::MainExit const&) {},

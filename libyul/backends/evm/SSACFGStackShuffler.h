@@ -29,14 +29,13 @@ template<typename StackShuffler>
 concept SSACFGStackShuffler = requires(
 	StackShuffler _shuffler,
 	typename StackShuffler::Stack _sourceStack,
-	typename StackShuffler::Stack _targetStackTop,
-	std::vector<typename StackShuffler::Stack::Slot> _targetStackRest,
+	std::vector<typename StackShuffler::Stack::Slot> _targetStackTop,
+	std::set<typename StackShuffler::Stack::Slot> _targetStackRest,
 	typename StackShuffler::Stack::Slot _slot
 )
 {
 	typename StackShuffler::Stack;
-	{ _shuffler.canBeFreelyGenerated(_slot) } -> std::same_as<bool>;
-	{ _shuffler.shuffle(_sourceStack, _targetStackTop, _targetStackRest) } -> std::convertible_to<typename StackShuffler::Stack>;
+	{ _shuffler.shuffle(_sourceStack, _targetStackRest, _targetStackTop) } -> std::convertible_to<typename StackShuffler::Stack>;
 };
 
 template<SSACFGStack StackType>
@@ -44,7 +43,7 @@ struct BubbleShuffler
 {
 	using Stack = StackType;
 	using StackSlot = typename Stack::Slot;
-	static Stack shuffle(Stack const& _sourceStack, Stack const& _targetStackTop, std::vector<StackSlot> const& _targetStackRest)
+	static Stack shuffle(Stack const& _sourceStack, std::set<StackSlot> const& _targetStackRest, std::vector<StackSlot> const& _targetStackTop)
 	{
 		Stack shuffledStack = _sourceStack;
 		auto const histogram = [](Stack const& _stack, std::vector<StackSlot> const& _rest = {})
@@ -118,7 +117,6 @@ struct BubbleShuffler
 		// yulAssert(m_stack == _target, fmt::format("Stack target mismatch: current = {} =/= {} = target", stackToStringLoc(m_cfg.get(), m_stack), stackToStringLoc(m_cfg.get(), _target)));
 		return shuffledStack;
 	}
-	static bool canBeFreelyGenerated(StackSlot const&) { return false; }
 
 };
 

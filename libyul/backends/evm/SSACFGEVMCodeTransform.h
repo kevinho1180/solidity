@@ -21,7 +21,6 @@
 
 #include <libyul/backends/evm/EVMDialect.h>
 #include <libyul/backends/evm/ControlFlow.h>
-#include <libyul/backends/evm/SSACFGLiveness.h>
 #include <libyul/backends/evm/SSAControlFlowGraph.h>
 #include <libyul/backends/evm/SSACFGStackLayout.h>
 #include <libyul/AST.h>
@@ -41,81 +40,11 @@ namespace solidity::yul
 struct AsmAnalysisInfo;
 struct StackLayout;
 
-namespace ssacfg
-{
-using StackSlot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID>;
-class PhiMapping
-{
-public:
-	PhiMapping() = default;
-	PhiMapping(SSACFG const& _cfg, SSACFG::BlockId _from, SSACFG::BlockId _to)
-	{
-		auto const argIndex = _cfg.phiArgumentIndex(_from, _to);
-		auto const& phis = _cfg.block(_to).phis;
-		for (auto const& phiId: phis)
-		{
-			auto const& phiInfo = _cfg.valueInfo(phiId);
-			yulAssert(std::holds_alternative<SSACFG::PhiValue>(phiInfo));
-			auto const& phi = std::get<SSACFG::PhiValue>(phiInfo);
-			m_reverseMapping[phiId] = phi.arguments[argIndex];
-		}
-	}
-
-	bool empty() const { return m_reverseMapping.empty(); }
-	StackSlot transform(StackSlot const& _slot) const;
-	std::vector<StackSlot> transformStackToPhiValues(std::vector<StackSlot> const& _stack) const;
-
-private:
-	// maps phi_j -> v_i
-	std::map<SSACFG::ValueId, SSACFG::ValueId> m_reverseMapping;
-};
-class Stack
-{
-public:
-	explicit Stack(AbstractAssembly& _assembly, SSACFG const& _cfg, std::vector<StackSlot> const& _initialStack = {}):
-		m_assembly(_assembly), m_cfg(_cfg), m_stack(_initialStack) {}
-	Stack(Stack const&) = default;
-	Stack(Stack&&) = default;
-	Stack& operator=(Stack const&) = default;
-	Stack& operator=(Stack&&) = default;
-
-	size_t size() const { return m_stack.size(); }
-
-	void permute(std::vector<StackSlot> const& _target);
-	void createExactStack(std::vector<StackSlot> const& _target, PhiMapping const& _phis);
-
-	void createStack(std::vector<StackSlot> const& _top, std::vector<StackSlot> const& _rest, PhiMapping const& _phis = {});
-
-	StackSlot const& top() const
-	{
-		yulAssert(!empty(), "empty stack");
-		return m_stack.back();
-	}
-
-	SSACFG::LiteralValue resolveLiteralValue(StackSlot const& _slot) const;
-	void push(SSACFG::ValueId const& _value, bool _generateInstruction = true);
-	void pop(bool _generateInstruction = true);
-	void swap(size_t _depth, bool _generateInstruction = true);
-	void dup(size_t _depth, bool _generateInstruction = true);
-	bool dup(StackSlot const& _slot, bool _generateInstruction = true);
-	bool empty() const;
-	void clear();
-	void bringUpSlot(StackSlot const& _slot);
-
-	std::vector<StackSlot> const& data() const { return m_stack; }
-
-	std::optional<size_t> slotIndex(StackSlot const& _slot) const;
-private:
-	std::reference_wrapper<AbstractAssembly> m_assembly;
-	std::reference_wrapper<SSACFG const> m_cfg;
-	std::vector<StackSlot> m_stack;
-};
-}
-
 class SSACFGEVMCodeTransform
 {
 public:
 	using Stack = SSACFGStackLayoutStack;
+	using Slot = Stack::Slot;
 	/// Use named labels for functions 1) Yes and check that the names are unique
 	/// 2) For none of the functions 3) for the first function of each name.
 	enum class UseNamedLabels { YesAndForceUnique, Never, ForFirstFunctionOfEachName };

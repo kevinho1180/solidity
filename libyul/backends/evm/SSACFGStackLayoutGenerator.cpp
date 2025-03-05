@@ -132,7 +132,11 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 
 	auto const liveOutWithoutOutputsSet = operationLiveOut - operation.outputs;
 	auto const liveOutWithoutOutputs = std::set<SSACFGStackLayout::Slot>(liveOutWithoutOutputsSet.begin(), liveOutWithoutOutputsSet.end());
-	std::vector<SSACFGStackLayout::Slot> const requiredStackTop(operation.inputs.begin(), operation.inputs.end());
+	std::vector<SSACFGStackLayout::Slot> requiredStackTop;
+	if (auto const* call = std::get_if<SSACFG::Call>(&operation.kind))
+		if (call->canContinue)
+			requiredStackTop.emplace_back(SSACFGFunctionReturnLabel{&call->call.get()});
+	requiredStackTop += operation.inputs;
 
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
 	static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
@@ -142,7 +146,7 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	auto stack = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, liveOutWithoutOutputs, requiredStackTop);
 	m_stackLayout[_blockId].operationIn[_operationIndex] = stack;
 
-	for (size_t i = 0; i < operation.inputs.size(); ++i)
+	for (size_t i = 0; i < requiredStackTop.size(); ++i)
 		stack.pop();
 	for (auto const& val: operation.outputs)
 		stack.push(val);
@@ -166,7 +170,10 @@ void SSACFGStackLayoutGenerator::populateBlockSuccessorStackIn(SSACFG::BlockId c
 		{
 			yulAssert(false, "nope, not yet"); // todo
 		},
-		[](SSACFG::BasicBlock::FunctionReturn const&) {},
+		[](SSACFG::BasicBlock::FunctionReturn const&)
+		{
+
+		},
 		[](SSACFG::BasicBlock::Terminated const&) {}
 	}, m_cfg.block(_blockId).exit);
 }
@@ -184,7 +191,6 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 	yulAssert(ranges::none_of(targetLiveIn, IsSSACFGLiteral(m_cfg)));
 
 	std::set<SSACFGStackLayout::Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
-	// todo shuffle to
 	if (requiresCleanStack(_jump.target))
 		m_stackLayout[_jump.target].stackIn = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(m_stackLayout[_source].stackOut, targetLiveInSlots, {});
 	else
@@ -215,6 +221,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		auto const remainingZeroLiveIn = pulledBackZeroLiveIn - nonZeroLiveIn;
 		std::vector<SSACFGStackLayout::Slot> const remainingZeroLiveInSlots(remainingZeroLiveIn.begin(), remainingZeroLiveIn.end());
 
+		// todo use shuffle algo
 		if (requiresCleanStack(_condJump.nonZero))
 			// [phi^-1(liveInZero) - liveInNonZero, liveInNonZero]
 			m_stackLayout[_condJump.nonZero].stackIn = SSACFGStackLayout::Stack(remainingZeroLiveInSlots + nonZeroLiveInSlots);
@@ -232,6 +239,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		yulAssert(ranges::none_of(zeroLiveIn, IsSSACFGLiteral(m_cfg)));
 
 		std::vector<SSACFGStackLayout::Slot> const zeroLiveInStackData(zeroLiveIn.begin(), zeroLiveIn.end());
+		// todo use shuffle algo
 		if (requiresCleanStack(_condJump.zero))
 			m_stackLayout[_condJump.zero].stackIn = SSACFGStackLayout::Stack(zeroLiveInStackData);
 		else

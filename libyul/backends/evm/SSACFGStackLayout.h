@@ -80,7 +80,7 @@ concept SSACFGStack = requires(Stack _stack, Stack _otherStack, size_t _depth, t
 
 struct SSACFGFunctionReturnLabel
 {
-	Scope::Function const* function;
+	FunctionCall const* functionCall;
 	auto operator<=>(SSACFGFunctionReturnLabel const&) const = default;
 };
 

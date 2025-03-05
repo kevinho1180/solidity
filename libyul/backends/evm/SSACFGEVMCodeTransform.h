@@ -94,7 +94,8 @@ private:
 	Stack m_stack {};
 	SSACFG::BlockId m_currentBlock;
 	std::vector<std::uint8_t> m_generatedBlocks;
-	std::vector<std::optional<AbstractAssembly::LabelID>> m_blockLabels;
+	std::vector<AbstractAssembly::LabelID> m_blockLabels;
+	std::map<FunctionCall const*, AbstractAssembly::LabelID> m_returnLabels;
 };
 
 }

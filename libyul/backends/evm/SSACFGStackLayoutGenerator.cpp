@@ -56,6 +56,7 @@ SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
 ):
 	m_liveness(_liveness),
 	m_cfg(_liveness.cfg()),
+	m_revertPaths(_liveness.cfg(), _liveness.topologicalSort()),
 	m_generatedBlocks(_liveness.cfg().numBlocks(), false),
 	m_definedStackIn(_liveness.cfg().numBlocks(), false)
 {
@@ -275,3 +276,33 @@ void SSACFGStackLayoutGenerator::markBlockHasDefinedStackIn(SSACFG::BlockId cons
 	m_definedStackIn[_blockId.value] = true;
 }
 
+SSACFGStackLayoutGenerator::RevertPaths::RevertPaths(SSACFG const& _cfg, ForwardSSACFGTopologicalSort const& _topologicalSort):
+	m_blockIsOnRevertPath(_cfg.numBlocks(), true)
+{
+	std::vector<SSACFG::BlockId> returnBlocks;
+	for (auto const blockIndex: _topologicalSort.preOrder())
+		if (std::holds_alternative<SSACFG::BasicBlock::FunctionReturn>(_cfg.block(SSACFG::BlockId{blockIndex}).exit))
+			returnBlocks.emplace_back(SSACFG::BlockId{blockIndex});
+
+	for (auto const& returnBlock: returnBlocks)
+	{
+		std::vector<uint8_t> visited(_cfg.numBlocks(), false);
+		std::vector toVisit{returnBlock};
+		while (!toVisit.empty())
+		{
+			auto const blockId = toVisit.back();
+			auto const& block = _cfg.block(blockId);
+			toVisit.pop_back();
+			m_blockIsOnRevertPath[blockId.value] = false;
+			visited[blockId.value] = true;
+			for (auto const& [entryIdValue]: block.entries)
+				if (!visited[entryIdValue])
+					toVisit.emplace_back(entryIdValue);
+		}
+	}
+}
+
+bool SSACFGStackLayoutGenerator::RevertPaths::blockIsOnRevertPath(SSACFG::BlockId const& _blockId) const
+{
+	return m_blockIsOnRevertPath[_blockId.value];
+}

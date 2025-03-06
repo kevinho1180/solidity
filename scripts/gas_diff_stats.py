@@ -19,6 +19,8 @@ from pathlib import Path
 from enum import Enum
 from parsec import generate, ParseError, regex, string, optional
 from tabulate import tabulate
+from tqdm import tqdm
+
 
 class Kind(Enum):
     Ir = 1
@@ -69,7 +71,7 @@ def diff_string() -> (Kind, Diff, int):
     val = yield number()
     return (diff_kind, codegen_kind, val)
 
-def collect_statistics(lines) -> (int, int, int, int, int, int):
+def collect_statistics(lines, code) -> (int, int, int, int, int, int):
     """Returns
 
     (old_ir_optimized, old_legacy_optimized, old_legacy, new_ir_optimized,
@@ -85,6 +87,7 @@ def collect_statistics(lines) -> (int, int, int, int, int, int):
         parsed
         for line in lines
         if line.startswith('+// gas ') or line.startswith('-// gas ')
+        if (code and " code: " in line) or (not code and " code: " not in line)
         if (parsed := diff_string.parse(line)) is not None
     ]
     diff_kinds = [Diff.Minus, Diff.Plus]
@@ -101,14 +104,16 @@ def collect_statistics(lines) -> (int, int, int, int, int, int):
 
 def semantictest_statistics(base_branch: str):
     """Prints the tabulated statistics that can be pasted in github."""
-    def parse_git_diff(fname):
+    def parse_git_diff(fname, code):
+        args = ["git", "diff", "--cached", "--unified=0", base_branch, "--", fname]
+        # print("Executing", " ".join(args))
         diff_output = subprocess.check_output(
-            ["git", "diff", "--unified=0", base_branch, "HEAD", fname],
+            args,
             universal_newlines=True
         ).splitlines()
         if len(diff_output) == 0:
             return None
-        return collect_statistics(diff_output)
+        return collect_statistics(diff_output, code)
 
     def percent(old, new):
         return (int(new) - int(old)) / int(old) * 100 if int(old) != 0 else None
@@ -120,44 +125,45 @@ def semantictest_statistics(base_branch: str):
     def format_percent(percentage):
         if percentage is None:
             return ''
-        prefix = (
-            # Distinguish actual zero from very small differences
-            '+' if round(percentage) == 0 and percentage > 0 else
-            '-' if round(percentage) == 0 and percentage < 0 else
-            ''
-        )
-        return f'{prefix}{round(percentage)}%'
+        return f'{percentage:.3f}%'
 
     def stat(old, new):
         return format_percent(percent(old, new))
 
-    table = []
-
     if not SEMANTIC_TEST_DIR.is_dir():
         sys.exit(f"Semantic tests not found. '{SEMANTIC_TEST_DIR.absolute()}' is missing or not a directory.")
 
-    for path in SEMANTIC_TEST_DIR.rglob("*.sol"):
+    table = []
+    test_files = list(SEMANTIC_TEST_DIR.rglob("*.sol"))
+    for path in tqdm(test_files):
         fname = path.as_posix()
-        parsed = parse_git_diff(fname)
-        if parsed is None:
+        parsed_deploy = parse_git_diff(fname, True)
+        parsed_runtime = parse_git_diff(fname, False)
+        if not parsed_deploy and not parsed_runtime:
             continue
-        assert len(parsed) == 6
-        ir_optimized = stat(parsed[0], parsed[3])
-        legacy_optimized = stat(parsed[1], parsed[4])
-        legacy = stat(parsed[2], parsed[5])
-        fname = f"`{fname.split('/', 3)[-1]}`"
-        average = ((
-            percent_or_zero(parsed[0], parsed[3]) +
-            percent_or_zero(parsed[1], parsed[4]) +
-            percent_or_zero(parsed[2], parsed[5])
-        ) / 3)
-        table += [[average, fname, ir_optimized, legacy_optimized, legacy]]
-
-    sorted_table = [row[1:] for row in sorted(table, reverse=True)]
+        parsed_changes = []
+        for parsed in [parsed_runtime, parsed_deploy]:
+            assert len(parsed) == 6
+            ir_optimized = stat(parsed[0], parsed[3])
+            legacy_optimized = stat(parsed[1], parsed[4])
+            legacy = stat(parsed[2], parsed[5])
+            fname = f"`{fname.split('/', 3)[-1]}`"
+            average = ((
+                percent_or_zero(parsed[0], parsed[3]) +
+                percent_or_zero(parsed[1], parsed[4]) +
+                percent_or_zero(parsed[2], parsed[5])
+            ) / 3)
+            parsed_changes += [average, fname, ir_optimized, legacy_optimized, legacy]
+        table += [parsed_changes]
+    import numpy as np
+    table_data = np.array(table)
+    sort_indices = np.argsort(table_data[:, 0].astype(float))[::-1]
+    sorted_table = table_data[sort_indices][:, np.array([1,7,2,8,3,9])]
+    # sorted_table = [row[0][1:] for row in sorted(table, reverse=True)]
 
     if table:
         print("<details><summary>Click for a table of gas differences</summary>\n")
-        table_header = ["File name", "IR optimized", "Legacy optimized", "Legacy"]
+        table_header = ["File name", "IR optimized", "IR optimized deploy", "Legacy optimized", "Legacy optimized deploy", "Legacy", "Legacy deploy"]
         print(tabulate(sorted_table, headers=table_header, tablefmt="github"))
         print("</details>")
     else:

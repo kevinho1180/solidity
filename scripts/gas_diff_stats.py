@@ -137,12 +137,12 @@ def semantictest_statistics(base_branch: str):
     test_files = list(SEMANTIC_TEST_DIR.rglob("*.sol"))
     for path in tqdm(test_files):
         fname = path.as_posix()
-        parsed_deploy = parse_git_diff(fname, True)
+        parsed_deposit = parse_git_diff(fname, True)
         parsed_runtime = parse_git_diff(fname, False)
-        if not parsed_deploy and not parsed_runtime:
+        if not parsed_deposit and not parsed_runtime:
             continue
         parsed_changes = []
-        for parsed in [parsed_runtime, parsed_deploy]:
+        for parsed in [parsed_runtime, parsed_deposit]:
             assert len(parsed) == 6
             ir_optimized = stat(parsed[0], parsed[3])
             legacy_optimized = stat(parsed[1], parsed[4])
@@ -157,13 +157,12 @@ def semantictest_statistics(base_branch: str):
         table += [parsed_changes]
     import numpy as np
     table_data = np.array(table)
-    sort_indices = np.argsort(table_data[:, 0].astype(float))[::-1]
+    sort_indices = np.argsort(table_data[:, 5].astype(float))[::-1]
     sorted_table = table_data[sort_indices][:, np.array([1,7,2,8,3,9])]
-    # sorted_table = [row[0][1:] for row in sorted(table, reverse=True)]
 
     if table:
         print("<details><summary>Click for a table of gas differences</summary>\n")
-        table_header = ["File name", "IR optimized", "IR optimized deploy", "Legacy optimized", "Legacy optimized deploy", "Legacy", "Legacy deploy"]
+        table_header = ["File name", "IR optimized", "IR optimized deposit", "Legacy optimized", "Legacy optimized deposit", "Legacy", "Legacy deposit"]
         print(tabulate(sorted_table, headers=table_header, tablefmt="github"))
         print("</details>")
     else:

@@ -22,12 +22,12 @@ contract C {
 }
 // ====
 // EVMVersion: >=byzantium
-// revertStrings: debug
 // bytecodeFormat: legacy
+// revertStrings: debug
 // ----
 // constructor(), 1 ether ->
-// gas irOptimized: 98698
-// gas irOptimized code: 284200
+// gas irOptimized: 98626
+// gas irOptimized code: 283600
 // gas legacy: 123258
 // gas legacy code: 682400
 // gas legacyOptimized: 106969

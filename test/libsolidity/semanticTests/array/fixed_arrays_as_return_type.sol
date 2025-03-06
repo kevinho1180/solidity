@@ -18,8 +18,8 @@ contract B {
 }
 // ----
 // f() -> 2, 3, 4, 5, 6, 1000, 1001, 1002, 1003, 1004
-// gas irOptimized: 59212
-// gas irOptimized code: 56600
+// gas irOptimized: 59252
+// gas irOptimized code: 58400
 // gas legacy: 68001
 // gas legacy code: 162000
 // gas legacyOptimized: 59997

@@ -22,8 +22,8 @@ contract A {
 // bytecodeFormat: legacy
 // ----
 // f(), 10 ether -> 3007, 3008, 3009
-// gas irOptimized: 187022
-// gas irOptimized code: 67200
+// gas irOptimized: 187049
+// gas irOptimized code: 66000
 // gas legacy: 190858
 // gas legacy code: 190200
 // gas legacyOptimized: 187256

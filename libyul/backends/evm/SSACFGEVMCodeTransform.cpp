@@ -21,14 +21,13 @@
 
 #include <libyul/backends/evm/ControlFlowGraph.h>
 #include <libyul/backends/evm/SSAControlFlowGraphBuilder.h>
-#include <libyul/backends/evm/StackHelpers.h>
 #include <libyul/backends/evm/SSACFGStackLayoutGenerator.h>
 #include <libyul/backends/evm/SSACFGStackShuffler.h>
 
 #include <libsolutil/StringUtils.h>
 #include <libsolutil/Visitor.h>
-#include <range/v3/algorithm/none_of.hpp>
 
+#include <range/v3/algorithm/none_of.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/drop_exactly.hpp>
 #include <range/v3/view/enumerate.hpp>
@@ -43,7 +42,7 @@ using namespace solidity::yul;
 namespace
 {
 
-constexpr bool debugOutput = true;
+constexpr bool debugOutput = false;
 
 std::string ssaCfgVarToString(SSACFG const& _cfg, SSACFG::ValueId _var)
 {

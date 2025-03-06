@@ -193,7 +193,11 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 	// todo: just pop the stuff from stackOut we don't need and use that as stackIn
 	std::set<SSACFGStackLayout::Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
 	if (requiresCleanStack(_jump.target))
+	{
 		m_stackLayout[_jump.target].stackIn = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(m_stackLayout[_source].stackOut, targetLiveInSlots, {});
+		// m_stackLayout[_jump.target].stackIn = BlockStackInShuffler<SSACFGStackLayout::Stack>::shuffle(m_stackLayout[_source].stackOut, targetLiveInSlots);
+		yulAssert(std::set(m_stackLayout[_jump.target].stackIn.begin(), m_stackLayout[_jump.target].stackIn.end()) == targetLiveInSlots);
+	}
 	else
 	{
 		yulAssert(false);

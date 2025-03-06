@@ -21,6 +21,9 @@
 #include <libyul/backends/evm/StackHelpers.h>
 
 #include <concepts>
+#include <range/v3/algorithm/find.hpp>
+#include <range/v3/algorithm/find_end.hpp>
+#include <range/v3/algorithm/find_if_not.hpp>
 
 namespace solidity::yul
 {
@@ -125,8 +128,7 @@ struct DanielShuffler
 {
 	using Stack = StackType;
 	using StackSlot = typename Stack::Slot;
-	// todo rest -> tail
-	static Stack shuffle(Stack const& _sourceStack, std::set<StackSlot> const& _targetStackRest, std::vector<StackSlot> const& _targetStackTop)
+	static Stack shuffle(Stack const& _sourceStack, std::set<StackSlot> const& _targetStackTail, std::vector<StackSlot> const& _targetStackTop)
 	{
 		struct ShuffleOperations
 		{
@@ -196,9 +198,41 @@ struct DanielShuffler
 
 		};
 		Stack shuffledStack = _sourceStack;
-		auto const targetStack = std::vector(_targetStackRest.begin(), _targetStackRest.end()) + _targetStackTop;
+		auto const targetStack = std::vector(_targetStackTail.begin(), _targetStackTail.end()) + _targetStackTop;
 		Shuffler<ShuffleOperations>::shuffle(shuffledStack, targetStack);
 		return shuffledStack;
+	}
+};
+
+template<SSACFGStack StackType>
+struct BlockStackInShuffler
+{
+	using Stack = StackType;
+	using StackSlot = typename Stack::Slot;
+	static Stack shuffle(Stack const& _sourceStack, std::set<StackSlot> const& _liveIn)
+	{
+		Stack result = _sourceStack;
+		auto const findNextSlotToPop = [&]
+		{
+			return ranges::find_if_not(
+				ranges::rbegin(result),
+				ranges::rend(result),
+				[&](StackSlot const& _slot) { return _liveIn.contains(_slot); }
+			);
+		};
+		auto it = findNextSlotToPop();
+		while (it != ranges::rend(result))
+		{
+			result.swap(static_cast<size_t>(it - ranges::rbegin(result)));
+			yulAssert(!_liveIn.contains(result.top()));
+			result.pop();
+			it = findNextSlotToPop();
+		}
+
+		for (auto const& liveSlot: _liveIn)
+			if (ranges::find(result, liveSlot) == ranges::end(result))
+				result.push(liveSlot);
+		return result;
 	}
 };
 

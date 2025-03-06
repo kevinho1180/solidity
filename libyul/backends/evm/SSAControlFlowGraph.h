@@ -54,6 +54,12 @@ public:
 		size_t value = std::numeric_limits<size_t>::max();
 		auto operator<=>(BlockId const&) const = default;
 	};
+	struct Edge
+	{
+		BlockId from;
+		BlockId to;
+		auto operator<=>(Edge const&) const = default;
+	};
 	struct ValueId
 	{
 		size_t value = std::numeric_limits<size_t>::max();

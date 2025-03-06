@@ -84,6 +84,8 @@ private:
 		return m_functionLabels.at(&_function);
 	}
 
+	void shuffleStack(std::vector<Slot> _target, std::optional<SSACFG::Edge> const& _edge = std::nullopt);
+
 	AbstractAssembly& m_assembly;
 	BuiltinContext& m_builtinContext;
 	SSACFG const& m_cfg;

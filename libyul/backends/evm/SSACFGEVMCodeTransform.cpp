@@ -80,7 +80,7 @@ std::string stackSlotToStringLoc(SSACFG const& _cfg, SSACFGEVMCodeTransform::Sta
 		[](SSACFGFunctionReturnLabel const& _functionReturnLabel)
 		{
 			yulAssert(_functionReturnLabel.functionCall, "Function return label was null.");
-			// todo assert variant
+			yulAssert(std::holds_alternative<Identifier>(_functionReturnLabel.functionCall->functionName));
 			return fmt::format("ReturnLabel[{}]", std::get<Identifier>(_functionReturnLabel.functionCall->functionName).name.str());
 		}
 	}, _slot);
@@ -175,29 +175,6 @@ private:
 	std::map<FunctionCall const*, AbstractAssembly::LabelID> const& m_returnLabels;
 };
 static_assert(SSACFGStack<StackWithAssemblyOps>);
-
-void shuffleStack(
-	SSACFG const& _cfg,
-	std::map<FunctionCall const*, AbstractAssembly::LabelID> const& _returnLabels,
-	AbstractAssembly& _assembly,
-	SSACFGEVMCodeTransform::Stack& _stack,
-	std::vector<SSACFGEVMCodeTransform::Stack::Slot> _target,
-	ReversePhiFunctionTransform const& _phiTransform = {}
-)
-{
-	auto const transformedTarget = [&]
-	{
-		if (_phiTransform.noOp())
-			return _target;
-		return _target | ranges::views::transform(_phiTransform) | ranges::to<std::vector>;
-	}();
-	DanielShuffler<StackWithAssemblyOps>::shuffle(
-		StackWithAssemblyOps(_cfg, _assembly, _stack, _returnLabels),
-		{}, transformedTarget
-	);
-	yulAssert(transformedTarget == _stack.stackData());
-	_stack = SSACFGEVMCodeTransform::Stack(_target);
-}
 
 }
 
@@ -396,8 +373,7 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 			if constexpr (debugOutput)
 				std::cout << "\t\tJUMP Creating target stack for jump " << _block.value << " -> " << _jump.target.value << std::endl;
 
-			ReversePhiFunctionTransform const phiTransform(m_cfg, _block, _jump.target);
-			shuffleStack(m_cfg, m_returnLabels, m_assembly, m_stack, m_stackLayout[_jump.target].stackIn.stackData(), phiTransform);
+			shuffleStack(m_stackLayout[_jump.target].stackIn.stackData(), SSACFG::Edge{_block, _jump.target});
 			m_assembly.appendJumpTo(m_blockLabels[_jump.target.value]);
 			if (!m_generatedBlocks[_jump.target.value])
 				(*this)(_jump.target);
@@ -405,10 +381,9 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 		[&](SSACFG::BasicBlock::ConditionalJump const& _conditionalJump)
 		{
 			{
-				ReversePhiFunctionTransform const phiTransform(m_cfg, _block, _conditionalJump.nonZero);
 				auto stackIn = m_stackLayout[_conditionalJump.nonZero].stackIn.stackData();
 				stackIn.emplace_back(_conditionalJump.condition);
-				shuffleStack(m_cfg, m_returnLabels, m_assembly, m_stack, stackIn, phiTransform);
+				shuffleStack(stackIn, SSACFG::Edge{_block, _conditionalJump.nonZero});
 			}
 			Stack const currentStack = m_stack;
 
@@ -424,10 +399,10 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 			if constexpr (debugOutput)
 				std::cout << "\t\tJUMPI Creating stack for zero layout" << std::endl;
 
-			{
-				ReversePhiFunctionTransform const phiTransform(m_cfg, _block, _conditionalJump.zero);
-				shuffleStack(m_cfg, m_returnLabels, m_assembly, m_stack, m_stackLayout[_conditionalJump.zero].stackIn.stackData(), phiTransform);
-			}
+			shuffleStack(
+				m_stackLayout[_conditionalJump.zero].stackIn.stackData(),
+				SSACFG::Edge{_block, _conditionalJump.zero}
+			);
 			m_assembly.appendJumpTo(m_blockLabels[_conditionalJump.zero.value]);
 
 			if (!m_generatedBlocks[_conditionalJump.zero.value])
@@ -448,11 +423,11 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 			{
 				returnSlots.assign(_return.returnValues.begin()+1, _return.returnValues.end());
 				returnSlots.emplace_back(_return.returnValues.front());
-				shuffleStack(m_cfg, m_returnLabels, m_assembly, m_stack, returnSlots);
+				shuffleStack(returnSlots);
 				m_assembly.appendInstruction(evmasm::swapInstruction(static_cast<unsigned>(_return.returnValues.size())));
 			}
 			else
-				shuffleStack(m_cfg, m_returnLabels, m_assembly, m_stack, returnSlots);
+				shuffleStack(returnSlots);
 			m_assembly.appendJump(0, AbstractAssembly::JumpType::OutOfFunction);
 			// m_assembly.setStackHeight(static_cast<int>(m_stack.size()) + 1);
 		},
@@ -512,4 +487,21 @@ void SSACFGEVMCodeTransform::performOperation(SSACFG::Operation const& _operatio
 
 	if constexpr (debugOutput)
 		std::cout << " -> " << stackToStringLoc(m_cfg, m_stack.stackData()) << std::endl;
+}
+
+void SSACFGEVMCodeTransform::shuffleStack(std::vector<Slot> _target, std::optional<SSACFG::Edge> const& _edge)
+{
+	auto const phiTransform = _edge ? ReversePhiFunctionTransform(m_cfg, _edge->from, _edge->to) : ReversePhiFunctionTransform{};
+	auto const transformedTarget = [&]
+	{
+		if (phiTransform.noOp())
+			return _target;
+		return _target | ranges::views::transform(phiTransform) | ranges::to<std::vector>;
+	}();
+	DanielShuffler<StackWithAssemblyOps>::shuffle(
+		StackWithAssemblyOps(m_cfg, m_assembly, m_stack, m_returnLabels),
+		{}, transformedTarget
+	);
+	yulAssert(transformedTarget == m_stack.stackData());
+	m_stack = Stack(_target);
 }

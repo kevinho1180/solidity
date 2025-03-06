@@ -42,7 +42,7 @@ using namespace solidity::yul;
 namespace
 {
 
-constexpr bool debugOutput = false;
+constexpr bool debugOutput = true;
 
 std::string ssaCfgVarToString(SSACFG const& _cfg, SSACFG::ValueId _var)
 {
@@ -185,7 +185,10 @@ std::vector<StackTooDeepError> SSACFGEVMCodeTransform::run(
 {
 	if constexpr (debugOutput)
 	{
+		std::cout << "\n\n\n";
+		std::cout << "--------------------\n";
 		std::cout << "Running SSACFGEVMCodeTransform" << std::endl;
+		std::cout << "--------------------\n";
 		fmt::print("{}\n", _liveness.toDot());
 		std::fflush(nullptr);
 	}
@@ -384,7 +387,7 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 				stackIn.emplace_back(_conditionalJump.condition);
 				shuffleStack(stackIn, SSACFG::Edge{_block, _conditionalJump.nonZero});
 			}
-			Stack const currentStack = m_stack;
+			// std::cout << "Stack after putting cond on top: "<< stackToStringLoc(m_cfg, m_stack.stackData()) << std::endl;
 
 			// Emit the conditional jump to the non-zero label and update the stored stack.
 			{
@@ -395,8 +398,9 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 			}
 			Stack const nonZeroStack = m_stack;
 
+			// std::cout << "Current stack: "<< stackToStringLoc(m_cfg, m_stack.stackData()) << std::endl;
 			if constexpr (debugOutput)
-				std::cout << "\t\tJUMPI Creating stack for zero layout" << std::endl;
+				std::cout << "\t\tJUMPI Creating stack for zero layout " << stackToStringLoc(m_cfg, m_stackLayout[_conditionalJump.zero].stackIn.stackData()) << std::endl;
 
 			shuffleStack(
 				m_stackLayout[_conditionalJump.zero].stackIn.stackData(),
@@ -490,12 +494,12 @@ void SSACFGEVMCodeTransform::performOperation(SSACFG::Operation const& _operatio
 
 void SSACFGEVMCodeTransform::shuffleStack(std::vector<Slot> _target, std::optional<SSACFG::Edge> const& _edge)
 {
-	auto const phiTransform = _edge ? ReversePhiFunctionTransform(m_cfg, _edge->from, _edge->to) : ReversePhiFunctionTransform{};
+	auto const transform = _edge ? ReversePhiFunctionTransform(m_cfg, _edge->from, _edge->to) : ReversePhiFunctionTransform{};
 	auto const transformedTarget = [&]
 	{
-		if (phiTransform.noOp())
+		if (transform.noOp())
 			return _target;
-		return _target | ranges::views::transform(phiTransform) | ranges::to<std::vector>;
+		return _target | ranges::views::transform(transform) | ranges::to<std::vector>;
 	}();
 	DanielShuffler<StackWithAssemblyOps>::shuffle(
 		StackWithAssemblyOps(m_cfg, m_assembly, m_stack, m_returnLabels),

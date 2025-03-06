@@ -223,7 +223,8 @@ struct BlockStackInShuffler
 		auto it = findNextSlotToPop();
 		while (it != ranges::rend(result))
 		{
-			result.swap(static_cast<size_t>(it - ranges::rbegin(result)));
+			if (it != ranges::rbegin(result))
+				result.swap(static_cast<size_t>(it - ranges::rbegin(result)));
 			yulAssert(!_liveIn.contains(result.top()));
 			result.pop();
 			it = findNextSlotToPop();

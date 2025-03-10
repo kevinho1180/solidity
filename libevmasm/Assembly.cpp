@@ -53,6 +53,60 @@ using namespace solidity::evmasm;
 using namespace solidity::langutil;
 using namespace solidity::util;
 
+class EthDebugCodeSectionTracker
+{
+public:
+	EthDebugCodeSectionTracker(LinkerObject& _linkerObject):
+	m_linkerObject(_linkerObject),
+	m_codeSectionLocation(m_linkerObject.codeSectionLocations.emplace_back())
+	{
+		m_codeSectionLocation.start = m_linkerObject.bytecode.size();
+	}
+	~EthDebugCodeSectionTracker()
+	{
+		m_codeSectionLocation.end = m_linkerObject.bytecode.size();
+
+	}
+	LinkerObject const& linkerObject() { return m_linkerObject; }
+	LinkerObject::CodeSectionLocation& codeSectionLocation() { return m_codeSectionLocation; }
+	size_t assemblyItemIndex() const { return m_assemblyItemIndex; }
+	void nextItem()
+	{
+		m_assemblyItemIndex++;
+	}
+private:
+	LinkerObject& m_linkerObject;
+	LinkerObject::CodeSectionLocation& m_codeSectionLocation;
+	size_t m_assemblyItemIndex = 0;
+};
+
+class EthDebugAssemblyItemTracker
+{
+public:
+	EthDebugAssemblyItemTracker(EthDebugCodeSectionTracker& _codeSectionTracker):
+	m_codeSectionTracker(_codeSectionTracker),
+	m_start(m_codeSectionTracker.linkerObject().bytecode.size())
+	{}
+	~EthDebugAssemblyItemTracker()
+	{
+		emitInstruction();
+		m_codeSectionTracker.nextItem();
+	}
+	void emitInstruction()
+	{
+		size_t m_end = m_codeSectionTracker.linkerObject().bytecode.size();
+		m_codeSectionTracker.codeSectionLocation().instructionLocations.emplace_back(LinkerObject::InstructionLocation{
+			m_start,
+			m_end,
+			m_codeSectionTracker.assemblyItemIndex()
+		});
+		m_start = m_end;
+	}
+private:
+	EthDebugCodeSectionTracker& m_codeSectionTracker;
+	size_t m_start{};
+};
+
 std::map<std::string, std::shared_ptr<std::string const>> Assembly::s_sharedSourceNames;
 
 AssemblyItem const& Assembly::append(AssemblyItem _i)
@@ -1281,23 +1335,10 @@ LinkerObject const& Assembly::assembleLegacy() const
 	uint8_t tagPush = static_cast<uint8_t>(pushInstruction(bytesPerTag));
 	uint8_t dataRefPush = static_cast<uint8_t>(pushInstruction(bytesPerDataRef));
 
-	LinkerObject::CodeSectionLocation codeSectionLocation;
-	codeSectionLocation.start = 0;
-	size_t assemblyItemIndex = 0;
-	auto assembleInstruction = [&](auto&& _addInstruction) {
-		size_t start = ret.bytecode.size();
-		_addInstruction();
-		size_t end = ret.bytecode.size();
-		codeSectionLocation.instructionLocations.emplace_back(
-			LinkerObject::InstructionLocation{
-				.start = start,
-				.end = end,
-				.assemblyItemIndex = assemblyItemIndex
-			}
-		);
-	};
+	EthDebugCodeSectionTracker ethdebugCodeSectionTracker(ret);
 	for (AssemblyItem const& item: items)
 	{
+		EthDebugAssemblyItemTracker ethdebugAssemblyItemTracker(ethdebugCodeSectionTracker);
 		// store position of the invalid jump destination
 		if (item.type() != Tag && m_tagPositionsInBytecode[0] == std::numeric_limits<size_t>::max())
 			m_tagPositionsInBytecode[0] = ret.bytecode.size();
@@ -1305,145 +1346,115 @@ LinkerObject const& Assembly::assembleLegacy() const
 		switch (item.type())
 		{
 		case Operation:
-			assembleInstruction([&](){
-				ret.bytecode += assembleOperation(item);
-			});
+			ret.bytecode += assembleOperation(item);
 			break;
 		case Push:
-			assembleInstruction([&](){
-				ret.bytecode += assemblePush(item);
-			});
+			ret.bytecode += assemblePush(item);
 			break;
 		case PushTag:
 		{
-			assembleInstruction([&](){
-				ret.bytecode.push_back(tagPush);
-				tagRefs[ret.bytecode.size()] = item.splitForeignPushTag();
-				ret.bytecode.resize(ret.bytecode.size() + bytesPerTag);
-			});
+			ret.bytecode.push_back(tagPush);
+			tagRefs[ret.bytecode.size()] = item.splitForeignPushTag();
+			ret.bytecode.resize(ret.bytecode.size() + bytesPerTag);
 			break;
 		}
 		case PushData:
-			assembleInstruction([&]() {
-				ret.bytecode.push_back(dataRefPush);
-				dataRefs.insert(std::make_pair(h256(item.data()), ret.bytecode.size()));
-				ret.bytecode.resize(ret.bytecode.size() + bytesPerDataRef);
-			});
+			ret.bytecode.push_back(dataRefPush);
+			dataRefs.insert(std::make_pair(h256(item.data()), ret.bytecode.size()));
+			ret.bytecode.resize(ret.bytecode.size() + bytesPerDataRef);
 			break;
 		case PushSub:
-			assembleInstruction([&]() {
-				assertThrow(item.data() <= std::numeric_limits<size_t>::max(), AssemblyException, "");
-				ret.bytecode.push_back(dataRefPush);
-				subRefs.insert(std::make_pair(static_cast<size_t>(item.data()), ret.bytecode.size()));
-				ret.bytecode.resize(ret.bytecode.size() + bytesPerDataRef);
-			});
+			assertThrow(item.data() <= std::numeric_limits<size_t>::max(), AssemblyException, "");
+			ret.bytecode.push_back(dataRefPush);
+			subRefs.insert(std::make_pair(static_cast<size_t>(item.data()), ret.bytecode.size()));
+			ret.bytecode.resize(ret.bytecode.size() + bytesPerDataRef);
 			break;
 		case PushSubSize:
 		{
-			assembleInstruction([&](){
-				assertThrow(item.data() <= std::numeric_limits<size_t>::max(), AssemblyException, "");
-				auto s = subAssemblyById(static_cast<size_t>(item.data()))->assemble().bytecode.size();
-				item.setPushedValue(u256(s));
-				unsigned b = std::max<unsigned>(1, numberEncodingSize(s));
-				ret.bytecode.push_back(static_cast<uint8_t>(pushInstruction(b)));
-				ret.bytecode.resize(ret.bytecode.size() + b);
-				bytesRef byr(&ret.bytecode.back() + 1 - b, b);
-				toBigEndian(s, byr);
-			});
+			assertThrow(item.data() <= std::numeric_limits<size_t>::max(), AssemblyException, "");
+			auto s = subAssemblyById(static_cast<size_t>(item.data()))->assemble().bytecode.size();
+			item.setPushedValue(u256(s));
+			unsigned b = std::max<unsigned>(1, numberEncodingSize(s));
+			ret.bytecode.push_back(static_cast<uint8_t>(pushInstruction(b)));
+			ret.bytecode.resize(ret.bytecode.size() + b);
+			bytesRef byr(&ret.bytecode.back() + 1 - b, b);
+			toBigEndian(s, byr);
 			break;
 		}
 		case PushProgramSize:
 		{
-			assembleInstruction([&](){
-				ret.bytecode.push_back(dataRefPush);
-				sizeRefs.push_back(static_cast<unsigned>(ret.bytecode.size()));
-				ret.bytecode.resize(ret.bytecode.size() + bytesPerDataRef);
-			});
+			ret.bytecode.push_back(dataRefPush);
+			sizeRefs.push_back(static_cast<unsigned>(ret.bytecode.size()));
+			ret.bytecode.resize(ret.bytecode.size() + bytesPerDataRef);
 			break;
 		}
 		case PushLibraryAddress:
 		{
-			assembleInstruction([&]() {
-				auto const [bytecode, linkRef] = assemblePushLibraryAddress(item, ret.bytecode.size());
-				ret.bytecode += bytecode;
-				ret.linkReferences.insert(linkRef);
-			});
+			auto const [bytecode, linkRef] = assemblePushLibraryAddress(item, ret.bytecode.size());
+			ret.bytecode += bytecode;
+			ret.linkReferences.insert(linkRef);
 			break;
 		}
 		case PushImmutable:
-			assembleInstruction([&]() {
-				ret.bytecode.push_back(static_cast<uint8_t>(Instruction::PUSH32));
-				// Maps keccak back to the "identifier" std::string of that immutable.
-				ret.immutableReferences[item.data()].first = m_immutables.at(item.data());
-				// Record the bytecode offset of the PUSH32 argument.
-				ret.immutableReferences[item.data()].second.emplace_back(ret.bytecode.size());
-				// Advance bytecode by 32 bytes (default initialized).
-				ret.bytecode.resize(ret.bytecode.size() + 32);
-			});
+			ret.bytecode.push_back(static_cast<uint8_t>(Instruction::PUSH32));
+			// Maps keccak back to the "identifier" std::string of that immutable.
+			ret.immutableReferences[item.data()].first = m_immutables.at(item.data());
+			// Record the bytecode offset of the PUSH32 argument.
+			ret.immutableReferences[item.data()].second.emplace_back(ret.bytecode.size());
+			// Advance bytecode by 32 bytes (default initialized).
+			ret.bytecode.resize(ret.bytecode.size() + 32);
 			break;
 		case VerbatimBytecode:
 			ret.bytecode += assembleVerbatimBytecode(item);
 			break;
 		case AssignImmutable:
 		{
+			// Note: Since AssignImmutable decomposes into multiple instructions,
+			// we need to manually emit ethdebug data in this case.
+
 			// Expect 2 elements on stack (source, dest_base)
 			auto const& offsets = immutableReferencesBySub[item.data()].second;
 			for (size_t i = 0; i < offsets.size(); ++i)
 			{
 				if (i != offsets.size() - 1)
 				{
-					assembleInstruction([&]() {
-						ret.bytecode.push_back(uint8_t(Instruction::DUP2));
-					});
-					assembleInstruction([&]() {
-						ret.bytecode.push_back(uint8_t(Instruction::DUP2));
-					});
+					ret.bytecode.push_back(uint8_t(Instruction::DUP2));
+					ethdebugAssemblyItemTracker.emitInstruction();
+					ret.bytecode.push_back(uint8_t(Instruction::DUP2));
+					ethdebugAssemblyItemTracker.emitInstruction();
 				}
-				assembleInstruction([&]() {
-					// TODO: should we make use of the constant optimizer methods for pushing the offsets?
-					bytes offsetBytes = toCompactBigEndian(u256(offsets[i]));
-					ret.bytecode.push_back(static_cast<uint8_t>(pushInstruction(static_cast<unsigned>(offsetBytes.size()))));
-					ret.bytecode += offsetBytes;
-				});
-				assembleInstruction([&]() {
-					ret.bytecode.push_back(uint8_t(Instruction::ADD));
-				});
-				assembleInstruction([&]() {
-					ret.bytecode.push_back(uint8_t(Instruction::MSTORE));
-				});
+				// TODO: should we make use of the constant optimizer methods for pushing the offsets?
+				bytes offsetBytes = toCompactBigEndian(u256(offsets[i]));
+				ret.bytecode.push_back(static_cast<uint8_t>(pushInstruction(static_cast<unsigned>(offsetBytes.size()))));
+				ret.bytecode += offsetBytes;
+				ethdebugAssemblyItemTracker.emitInstruction();
+
+				ret.bytecode.push_back(uint8_t(Instruction::ADD));
+				ethdebugAssemblyItemTracker.emitInstruction();
+
+				ret.bytecode.push_back(uint8_t(Instruction::MSTORE));
+				// ethdebugAssemblyItemTracker's destructor will emit the last instruction.
 			}
 			if (offsets.empty())
 			{
-				assembleInstruction([&]() {
-					ret.bytecode.push_back(uint8_t(Instruction::POP));
-				});
-				assembleInstruction([&]() {
-					ret.bytecode.push_back(uint8_t(Instruction::POP));
-				});
+				ret.bytecode.push_back(uint8_t(Instruction::POP));
+				ethdebugAssemblyItemTracker.emitInstruction();
+				ret.bytecode.push_back(uint8_t(Instruction::POP));
+				// ethdebugAssemblyItemTracker's destructor will emit the last instruction.
 			}
 			immutableReferencesBySub.erase(item.data());
 			break;
 		}
 		case PushDeployTimeAddress:
-			assembleInstruction([&]() {
-				ret.bytecode += assemblePushDeployTimeAddress();
-			});
+			ret.bytecode += assemblePushDeployTimeAddress();
 			break;
 		case Tag:
-			assembleInstruction([&](){
-				ret.bytecode += assembleTag(item, ret.bytecode.size(), true);
-			});
+			ret.bytecode += assembleTag(item, ret.bytecode.size(), true);
 			break;
 		default:
 			solAssert(false, "Unexpected opcode while assembling.");
 		}
-
-		++assemblyItemIndex;
 	}
-
-	codeSectionLocation.end = ret.bytecode.size();
-
-	ret.codeSectionLocations.emplace_back(std::move(codeSectionLocation));
 
 	if (!immutableReferencesBySub.empty())
 		throw
@@ -1606,10 +1617,12 @@ LinkerObject const& Assembly::assembleEOF() const
 
 	for (auto&& [codeSectionIndex, codeSection]: m_codeSections | ranges::views::enumerate)
 	{
+		EthDebugCodeSectionTracker ethdebugCodeSectionTracker(ret);
 		auto const sectionStart = ret.bytecode.size();
 		solAssert(!codeSection.items.empty(), "Empty code section.");
 		for (AssemblyItem const& item: codeSection.items)
 		{
+			EthDebugAssemblyItemTracker ethdebugAssemblyItemTracker(ethdebugCodeSectionTracker);
 			// store position of the invalid jump destination
 			if (item.type() != Tag && m_tagPositionsInBytecode[0] == std::numeric_limits<size_t>::max())
 				m_tagPositionsInBytecode[0] = ret.bytecode.size();

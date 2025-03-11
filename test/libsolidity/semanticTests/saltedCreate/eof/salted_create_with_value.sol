@@ -21,5 +21,5 @@ contract A {
 // bytecodeFormat: >=EOFv1
 // ----
 // f(), 10 ether -> 3007, 3008, 3009
-// gas irOptimized: 185971
-// gas irOptimized code: 87600
+// gas irOptimized: 185950
+// gas irOptimized code: 85800

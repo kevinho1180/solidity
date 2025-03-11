@@ -16,14 +16,14 @@ contract C layout at 2**256 - 2 {
 }
 // ----
 // init() ->
-// gas irOptimized: 22672090
+// gas irOptimized: 22669090
 // gas legacy: 22699167
 // gas legacyOptimized: 22541160
 // validate() ->
-// gas irOptimized: 2384180
+// gas irOptimized: 2378180
 // gas legacy: 2560245
 // gas legacyOptimized: 2442238
 // clear() ->
-// gas irOptimized: 4406374
+// gas irOptimized: 4401574
 // gas legacy: 4300019
 // gas legacyOptimized: 4302413

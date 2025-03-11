@@ -31,7 +31,7 @@ contract D is A, B, C layout at 42 {
 }
 // ----
 // test() -> 1, 2, 3, 5
-// gas irOptimized: 110060
+// gas irOptimized: 110056
 // gas legacy: 111881
 // gas legacyOptimized: 110945
 // x() -> 1

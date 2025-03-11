@@ -10,8 +10,8 @@ contract Test {
 // bytecodeFormat: legacy,>=EOFv1
 // ----
 // constructor(): 7, 0x40, 78, "abcdefghijklmnopqrstuvwxyzabcdef", "ghijklmnopqrstuvwxyzabcdefghijkl", "mnopqrstuvwxyz" ->
-// gas irOptimized: 134197
-// gas irOptimized code: 77400
+// gas irOptimized: 134180
+// gas irOptimized code: 76600
 // gas legacy: 195212
 // gas legacy code: 109400
 // gas legacyOptimized: 181608

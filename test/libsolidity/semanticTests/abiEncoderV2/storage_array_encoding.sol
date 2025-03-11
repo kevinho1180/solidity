@@ -18,10 +18,10 @@ contract C {
 // EVMVersion: >homestead
 // ----
 // h(uint256[2][]): 0x20, 3, 123, 124, 223, 224, 323, 324 -> 32, 256, 0x20, 3, 123, 124, 223, 224, 323, 324
-// gas irOptimized: 179483
+// gas irOptimized: 179430
 // gas legacy: 184233
 // gas legacyOptimized: 180856
 // i(uint256[2][2]): 123, 124, 223, 224 -> 32, 128, 123, 124, 223, 224
-// gas irOptimized: 111767
+// gas irOptimized: 111736
 // gas legacy: 115091
 // gas legacyOptimized: 112657

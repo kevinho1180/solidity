@@ -40,7 +40,7 @@ contract c {
 // gas legacyOptimized: 110003
 // retrieve(uint256): 7 -> 1, 3, 4, 2
 // copy(uint256,uint256): 7, 8 -> true
-// gas irOptimized: 118509
+// gas irOptimized: 118503
 // gas legacy: 119144
 // gas legacyOptimized: 118618
 // retrieve(uint256): 7 -> 1, 3, 4, 2

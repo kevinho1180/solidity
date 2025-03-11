@@ -18,6 +18,6 @@ contract C {
 // bytecodeFormat: >=EOFv1
 // ----
 // constructor(): 42, 0x20, 0xc0, 1, 2, 3, 4, 5, 6 ->
-// gas irOptimized: 250627
-// gas irOptimized code: 68600
+// gas irOptimized: 250512
+// gas irOptimized code: 67200
 // s() -> 0x20, 0x0120, 42, 0x20, 0xc0, 1, 2, 3, 4, 5, 6

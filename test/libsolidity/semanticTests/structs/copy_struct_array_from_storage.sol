@@ -87,7 +87,7 @@ contract Test {
 // EVMVersion: >homestead
 // ----
 // test1() -> true
-// gas irOptimized: 152701
+// gas irOptimized: 152628
 // gas legacy: 153010
 // gas legacyOptimized: 152636
 // test2() -> true

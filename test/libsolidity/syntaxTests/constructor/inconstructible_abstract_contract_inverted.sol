@@ -11,3 +11,4 @@ abstract contract A {
 }
 // ----
 // TypeError 4614: (134-139): Cannot instantiate an abstract contract.
+// Warning 8887: (134-154): Contract creation on EOF does not use account nonce and will deploy to the same address when invoked multiple times with the same contract.Explicitly set the "salt" call option to generate unique addresses.

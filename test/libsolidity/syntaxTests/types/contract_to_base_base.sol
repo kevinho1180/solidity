@@ -8,3 +8,4 @@ contract D {
   }
 }
 // ----
+// Warning 8887: (99-106): Contract creation on EOF does not use account nonce and will deploy to the same address when invoked multiple times with the same contract.Explicitly set the "salt" call option to generate unique addresses.

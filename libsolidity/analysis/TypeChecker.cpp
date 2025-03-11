@@ -2843,6 +2843,27 @@ bool TypeChecker::visit(FunctionCall const& _functionCall)
 	return false;
 }
 
+void TypeChecker::endVisit(FunctionCall const& _functionCall)
+{
+	if (*_functionCall.annotation().kind == FunctionCallKind::FunctionCall)
+	{
+		auto const* functionType = dynamic_cast<FunctionType const*>(_functionCall.expression().annotation().type);
+		solAssert(functionType);
+		if (
+			m_eofVersion.has_value() &&
+			functionType->kind() == FunctionType::Kind::Creation &&
+			!functionType->saltSet()
+		)
+			m_errorReporter.warning(
+				8887_error,
+				_functionCall.location(),
+				"Contract creation on EOF does not use account nonce and will deploy to the same "
+				"address when invoked multiple times with the same contract."
+				"Explicitly set the \"salt\" call option to generate unique addresses."
+			);
+	}
+}
+
 bool TypeChecker::visit(FunctionCallOptions const& _functionCallOptions)
 {
 	solAssert(_functionCallOptions.options().size() == _functionCallOptions.names().size(), "Lengths of name & value arrays differ!");

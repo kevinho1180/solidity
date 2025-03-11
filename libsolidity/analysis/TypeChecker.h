@@ -147,6 +147,7 @@ private:
 	void endVisit(BinaryOperation const& _operation) override;
 	bool visit(UnaryOperation const& _operation) override;
 	bool visit(FunctionCall const& _functionCall) override;
+	void endVisit(FunctionCall const& _functionCall) override;
 	bool visit(FunctionCallOptions const& _functionCallOptions) override;
 	void endVisit(NewExpression const& _newExpression) override;
 	bool visit(MemberAccess const& _memberAccess) override;

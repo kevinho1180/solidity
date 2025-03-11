@@ -20,4 +20,5 @@ contract Test {
     }
 }
 // ----
+// Warning 8887: (B:91-98): Contract creation on EOF does not use account nonce and will deploy to the same address when invoked multiple times with the same contract.Explicitly set the "salt" call option to generate unique addresses.
 // TypeError 2443: (B:166-175): The type of this parameter, struct C.Item memory, is only supported in ABI coder v2. Use "pragma abicoder v2;" to enable the feature.

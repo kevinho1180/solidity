@@ -35,6 +35,7 @@ contract C {
 // TypeError 9640: (698-780): Explicit type conversion not allowed from "bytes32" to "bytes memory".
 // TypeError 1227: (698-783): Index range access is only supported for dynamic calldata arrays.
 // TypeError 1227: (865-871): Index range access is only supported for dynamic calldata arrays.
+// Warning 8887: (905-912): Contract creation on EOF does not use account nonce and will deploy to the same address when invoked multiple times with the same contract.Explicitly set the "salt" call option to generate unique addresses.
 // TypeError 9977: (134-139): Invalid type for argument in the string.concat function call. string type is required, but t_bool provided.
 // TypeError 9977: (153-154): Invalid type for argument in the string.concat function call. string type is required, but t_rational_1_by_1 provided.
 // TypeError 9977: (168-172): Invalid type for argument in the string.concat function call. string type is required, but t_rational_10000000000_by_1 provided.

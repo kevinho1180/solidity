@@ -46,6 +46,7 @@ contract C
 // TypeError 9640: (452-471): Explicit type conversion not allowed from "bytes10" to "int80".
 // TypeError 9640: (493-511): Explicit type conversion not allowed from "int80" to "bytes10".
 // TypeError 9640: (528-539): Explicit type conversion not allowed from "int256" to "contract B".
+// Warning 8887: (561-568): Contract creation on EOF does not use account nonce and will deploy to the same address when invoked multiple times with the same contract.Explicitly set the "salt" call option to generate unique addresses.
 // TypeError 9640: (557-569): Explicit type conversion not allowed from "contract B" to "int256".
 // TypeError 9640: (586-593): Explicit type conversion not allowed from "int_const 0" to "contract B".
 // TypeError 9640: (612-621): Explicit type conversion not allowed from "enum E" to "int256".

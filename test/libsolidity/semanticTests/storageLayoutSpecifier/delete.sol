@@ -19,7 +19,7 @@ contract C layout at 42 {
 }
 // ----
 // fillArray() -> 3
-// gas irOptimized: 110900
+// gas irOptimized: 110918
 // gas legacy: 110730
 // gas legacyOptimized: 110307
 // arrayLength() -> 3

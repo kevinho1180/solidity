@@ -62,7 +62,8 @@ unsigned ConstantOptimisationMethod::optimiseConstants(
 			ComputeMethod compute(params, item.data());
 			bigint computeGas = compute.gasNeeded();
 			AssemblyItems replacement;
-			if (copyGas < literalGas && copyGas < computeGas)
+			// TODO: Prevents choosing codecopy for EOF. Could be brought back using data section.
+			if (!_assembly.eofVersion().has_value() && copyGas < literalGas && copyGas < computeGas)
 			{
 				replacement = copy.execute(_assembly);
 				optimisations++;

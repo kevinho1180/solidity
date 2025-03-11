@@ -1827,7 +1827,7 @@ std::string YulUtilFunctions::clearStorageRangeFunction(Type const& _type)
 	return m_functionCollector.createFunction(functionName, [&]() {
 		return Whiskers(R"(
 			function <functionName>(start, end) {
-				for {} lt(start, end) { start := add(start, <increment>) }
+				for {} sub(start, end) { start := add(start, <increment>) }
 				{
 					<setToZero>(start, 0)
 				}

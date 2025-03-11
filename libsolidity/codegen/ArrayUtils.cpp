@@ -944,8 +944,7 @@ void ArrayUtils::clearStorageLoop(Type const* _type) const
 			_context <<
 				Instruction::DUP1 <<
 				Instruction::DUP3 <<
-				Instruction::GT <<
-				Instruction::ISZERO;
+				Instruction::EQ;
 			evmasm::AssemblyItem zeroLoopEnd = _context.newTag();
 			_context.appendConditionalJumpTo(zeroLoopEnd);
 			// delete

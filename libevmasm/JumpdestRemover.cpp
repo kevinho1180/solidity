@@ -43,6 +43,7 @@ bool JumpdestRemover::optimise(std::set<size_t> const& _tagsReferencedFromOutsid
 	AssemblyItems newItems;
 	for (auto it = m_items.begin(); it != m_items.end();)
 	{
+		// If we're not a tag: copy.
 		if (it->type() != Tag)
 		{
 			newItems.emplace_back(*it);
@@ -50,23 +51,31 @@ bool JumpdestRemover::optimise(std::set<size_t> const& _tagsReferencedFromOutsid
 		}
 		else
 		{
+			// We're a tag.
 			auto asmIdAndTag = it->splitForeignPushTag();
 			assertThrow(asmIdAndTag.first == std::numeric_limits<size_t>::max(), OptimizerException, "Sub-assembly tag used as label.");
 			size_t tag = asmIdAndTag.second;
 			if (references.count(tag))
 			{
+				// We're explicitly referenced; copy.
 				newItems.emplace_back(*it);
 				++it;
 			}
 			else
 			{
+				// We look like an unreferenced tag.
 				if (it == m_items.begin() || (it - 1)->type() == ConditionalRelativeJump)
 				{
-					newItems.emplace_back(*it);
+					// We're a tag after a conditional jump. This means we're still reachable.
+					// We can remove the tag, but need to continue copying afterwards.
 					++it;
 				}
 				else
 				{
+					// We're a fully unreachable tag.
+					// We remove the tag and everything up to the next tag or change of control flow.
+					// TODO: Why do we need to also stop at control flow alterations? Shouldn't anything that can be
+					// reachable again first be a tag? Apparently not.
 					++it;
 					while (it != m_items.end())
 					{

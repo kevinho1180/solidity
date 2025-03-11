@@ -37,6 +37,7 @@ using namespace solidity::evmasm;
 
 bool BlockDeduplicator::deduplicate()
 {
+	// For all tags determine their relative position within the assembly items.
 	std::map<u256, size_t> tagOffsets;
 	for (size_t i = 0; i < m_items.size(); ++i)
 		if (m_items[i].type() == Tag)
@@ -81,8 +82,10 @@ bool BlockDeduplicator::deduplicate()
 		return std::lexicographical_compare(first, end, second, end);
 	};
 
-	std::map<u256, std::vector<u256>> replacementCandidates;
+	// Use the first block with the same sequence as representative for all blocks of that sequence.
 	std::map<u256, u256> tagToRepresentative;
+	// Store all blocks that are equal to a representative.
+	std::map<u256, std::vector<u256>> replacementCandidates;
 	size_t iterations = 0;
 	for (; ; ++iterations)
 	{
@@ -92,6 +95,9 @@ bool BlockDeduplicator::deduplicate()
 		{
 			if (m_items.at(i).type() != Tag)
 				continue;
+			// Prevent considering any blocks that are not reverting.
+			// Actually not sure why this breaks more easily otherwise, but a lot of cases are of this simpler form,
+			// so it's a good start.
 			bool keep = false;
 			for (size_t j = i + 1; j < m_items.size(); ++j)
 				if (SemanticInformation::altersControlFlow(m_items[j]))
@@ -106,22 +112,27 @@ bool BlockDeduplicator::deduplicate()
 				blocksSeen.insert(i);
 			else
 			{
+				// It we find a match, map it to the representative.
 				tagToRepresentative[m_items.at(i).data()] = m_items.at(*it).data();
+				// And add it to the candidate list.
 				replacementCandidates[m_items.at(*it).data()].push_back(m_items.at(i).data());
 
 			}
 		}
 
+		// Sort all representative lists with respect to their order in the item sequence.
+		// Note: could make it a set with this as comparison.
 		for (auto& [representative, replacementCandidates]: replacementCandidates)
 			std::sort(replacementCandidates.begin(), replacementCandidates.end(), [&](u256 const& _lhs, u256 const& _rhs)
 			{
 				return tagOffsets[_lhs] < tagOffsets[_rhs];
 			});
 
+		// For all mappings from tags to representatives, map it to the last candidate.
 		for (auto&& [tag, representative]: tagToRepresentative)
 		{
 			u256 replacement = replacementCandidates.at(representative).back();
-			if (tag != replacement)
+			if (tag != replacement) // Is this really necessary?
 			{
 				m_replacedTags[tag] = replacement;
 			}

@@ -25,7 +25,7 @@ contract C layout at 42 is A {
 }
 // ----
 // setup() ->
-// gas irOptimized: 159082
+// gas irOptimized: 159171
 // gas legacy: 161738
 // gas legacyOptimized: 160222
 // open(uint256): 3 -> 0x20, 5, "Empty"

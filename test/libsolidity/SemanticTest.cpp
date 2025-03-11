@@ -61,7 +61,7 @@ SemanticTest::SemanticTest(
 	langutil::EVMVersion _evmVersion,
 	std::optional<uint8_t> _eofVersion,
 	std::vector<boost::filesystem::path> const& _vmPaths,
-	bool _enforceGasCost,
+	bool,
 	u256 _enforceGasCostMinValue
 ):
 	SolidityExecutionFramework(_evmVersion, _eofVersion, _vmPaths, false),
@@ -70,7 +70,7 @@ SemanticTest::SemanticTest(
 	m_lineOffset(m_reader.lineNumber()),
 	m_builtins(makeBuiltins()),
 	m_sideEffectHooks(makeSideEffectHooks()),
-	m_enforceGasCost(_enforceGasCost),
+	m_enforceGasCost(true),
 	m_enforceGasCostMinValue(std::move(_enforceGasCostMinValue))
 {
 	static std::set<std::string> const compileViaYulAllowedValues{"also", "true", "false"};

@@ -29,8 +29,8 @@ contract C {
 // EVMVersion: >=constantinople
 // ----
 // f() -> 3, 7, 5
-// gas irOptimized: 86892
-// gas irOptimized code: 37200
+// gas irOptimized: 86328
+// gas irOptimized code: 45600
 // gas legacy: 87839
 // gas legacy code: 60800
 // gas legacyOptimized: 86870

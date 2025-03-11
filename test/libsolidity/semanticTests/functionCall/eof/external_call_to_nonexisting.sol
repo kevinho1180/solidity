@@ -24,8 +24,8 @@ contract C {
 // bytecodeFormat: >=EOFv1
 // ----
 // constructor(), 1 ether ->
-// gas irOptimized: 88853
-// gas irOptimized code: 164400
+// gas irOptimized: 43154
+// gas irOptimized code: 163200
 // gas legacy: 102721
 // gas legacy code: 334400
 // gas legacyOptimized: 91499

@@ -62,7 +62,7 @@ public:
 			_options.evmVersion,
 			_options.eofVersion,
 			_options.vmPaths,
-			_options.enforceGasCost,
+			true,
 			_options.enforceGasCostMinValue
 		);
 	}
@@ -72,7 +72,7 @@ public:
 		langutil::EVMVersion _evmVersion,
 		std::optional<uint8_t> _eofVersion,
 		std::vector<boost::filesystem::path> const& _vmPaths,
-		bool _enforceGasCost = false,
+		bool _enforceGasCost = true,
 		u256 _enforceGasCostMinValue = 100000
 	);
 
@@ -122,7 +122,7 @@ private:
 	bool m_runWithABIEncoderV1Only = false;
 	bool m_allowNonExistingFunctions = false;
 	bool m_gasCostFailure = false;
-	bool m_enforceGasCost = false;
+	bool m_enforceGasCost = true;
 	RequiresYulOptimizer m_requiresYulOptimizer{};
 	u256 m_enforceGasCostMinValue;
 };

@@ -50,7 +50,7 @@ contract test {
 // ----
 // constructor()
 // gas irOptimized: 21029
-// gas irOptimized code: 530000
+// gas irOptimized code: 528200
 // gas legacy: 126346
 // gas legacy code: 932600
 // gas legacyOptimized: 102639

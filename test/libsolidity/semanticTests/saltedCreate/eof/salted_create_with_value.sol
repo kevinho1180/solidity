@@ -22,4 +22,4 @@ contract A {
 // ----
 // f(), 10 ether -> 3007, 3008, 3009
 // gas irOptimized: 185971
-// gas irOptimized code: 89400
+// gas irOptimized code: 87600

@@ -177,7 +177,7 @@ contract DepositContract is IDepositContract, ERC165 {
 // ----
 // constructor()
 // gas irOptimized: 727457
-// gas irOptimized code: 643600
+// gas irOptimized code: 600200
 // gas legacy: 920228
 // gas legacy code: 1438800
 // gas legacyOptimized: 848699

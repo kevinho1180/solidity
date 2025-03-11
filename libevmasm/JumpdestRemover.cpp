@@ -20,6 +20,9 @@
  * Removes unused JUMPDESTs.
  */
 
+#include "SemanticInformation.h"
+
+
 #include <libevmasm/JumpdestRemover.h>
 
 #include <libevmasm/AssemblyItem.h>
@@ -37,20 +40,54 @@ bool JumpdestRemover::optimise(std::set<size_t> const& _tagsReferencedFromOutsid
 
 	size_t initialSize = m_items.size();
 	/// Remove tags which are never referenced.
-	auto pend = remove_if(
-		m_items.begin(),
-		m_items.end(),
-		[&](AssemblyItem const& _item)
+	AssemblyItems newItems;
+	for (auto it = m_items.begin(); it != m_items.end();)
+	{
+		if (it->type() != Tag)
 		{
-			if (_item.type() != Tag)
-				return false;
-			auto asmIdAndTag = _item.splitForeignPushTag();
+			newItems.emplace_back(*it);
+			++it;
+		}
+		else
+		{
+			auto asmIdAndTag = it->splitForeignPushTag();
 			assertThrow(asmIdAndTag.first == std::numeric_limits<size_t>::max(), OptimizerException, "Sub-assembly tag used as label.");
 			size_t tag = asmIdAndTag.second;
-			return !references.count(tag);
+			if (references.count(tag))
+			{
+				newItems.emplace_back(*it);
+				++it;
+			}
+			else
+			{
+				if (it == m_items.begin() || (it - 1)->type() == ConditionalRelativeJump)
+				{
+					newItems.emplace_back(*it);
+					++it;
+				}
+				else
+				{
+					++it;
+					while (it != m_items.end())
+					{
+						if (it->type() == Tag)
+							break;
+						if (SemanticInformation::altersControlFlow(*it))
+						{
+							++it;
+							break;
+						}
+						++it;
+					}
+					if (it == m_items.end())
+						break;
+				}
+			}
+
 		}
-	);
-	m_items.erase(pend, m_items.end());
+	}
+	m_items = std::move(newItems);
+
 	return m_items.size() != initialSize;
 }
 

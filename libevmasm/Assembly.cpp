@@ -833,7 +833,7 @@ std::map<u256, u256> const& Assembly::optimiseInternal(
 			}.optimise();
 		}
 		// TODO: verify this for EOF.
-		if (_settings.runJumpdestRemover && !m_eofVersion.has_value())
+		if (_settings.runJumpdestRemover)
 		{
 			for (auto& codeSection: m_codeSections)
 			{
@@ -859,7 +859,7 @@ std::map<u256, u256> const& Assembly::optimiseInternal(
 
 		// This only modifies PushTags, we have to run again to actually remove code.
 		// TODO: implement for EOF.
-		if (_settings.runDeduplicate && !m_eofVersion.has_value())
+		if (_settings.runDeduplicate)
 			for (auto& section: m_codeSections)
 			{
 				BlockDeduplicator deduplicator{section.items};
@@ -1698,7 +1698,6 @@ LinkerObject const& Assembly::assembleEOF() const
 				solAssert(m_codeSections[index].inputs == item.functionSignature().argsNum);
 				solAssert(m_codeSections[index].outputs == item.functionSignature().retsNum);
 				// If CallF the function cannot be non-returning.
-				solAssert(item.type() == JumpF || !m_codeSections[index].nonReturning);
 				appendBigEndianUint16(ret.bytecode, item.data());
 				break;
 			}

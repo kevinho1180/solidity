@@ -19,5 +19,5 @@ contract C {
 // ----
 // constructor(): 42, 0x20, 0xc0, 1, 2, 3, 4, 5, 6 ->
 // gas irOptimized: 250627
-// gas irOptimized code: 69200
+// gas irOptimized code: 68600
 // s() -> 0x20, 0x0120, 42, 0x20, 0xc0, 1, 2, 3, 4, 5, 6

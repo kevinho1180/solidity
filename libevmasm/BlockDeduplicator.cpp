@@ -27,6 +27,7 @@
 #include <libevmasm/AssemblyItem.h>
 #include <libevmasm/SemanticInformation.h>
 
+#include <boost/mpl/tag.hpp>
 #include <functional>
 #include <set>
 
@@ -36,6 +37,10 @@ using namespace solidity::evmasm;
 
 bool BlockDeduplicator::deduplicate()
 {
+	std::map<u256, size_t> tagOffsets;
+	for (size_t i = 0; i < m_items.size(); ++i)
+		if (m_items[i].type() == Tag)
+			tagOffsets[m_items.at(i).data()] = i;
 	// Compares indices based on the suffix that starts there, ignoring tags and stopping at
 	// opcodes that stop the control flow.
 
@@ -76,6 +81,8 @@ bool BlockDeduplicator::deduplicate()
 		return std::lexicographical_compare(first, end, second, end);
 	};
 
+	std::map<u256, std::vector<u256>> replacementCandidates;
+	std::map<u256, u256> tagToRepresentative;
 	size_t iterations = 0;
 	for (; ; ++iterations)
 	{
@@ -85,11 +92,39 @@ bool BlockDeduplicator::deduplicate()
 		{
 			if (m_items.at(i).type() != Tag)
 				continue;
+			bool keep = false;
+			for (size_t j = i + 1; j < m_items.size(); ++j)
+				if (SemanticInformation::altersControlFlow(m_items[j]))
+				{
+					keep = SemanticInformation::terminatesControlFlow(m_items[j]);
+					break;
+				}
+			if (!keep)
+				continue;
 			auto it = blocksSeen.find(i);
 			if (it == blocksSeen.end())
 				blocksSeen.insert(i);
 			else
-				m_replacedTags[m_items.at(i).data()] = m_items.at(*it).data();
+			{
+				tagToRepresentative[m_items.at(i).data()] = m_items.at(*it).data();
+				replacementCandidates[m_items.at(*it).data()].push_back(m_items.at(i).data());
+
+			}
+		}
+
+		for (auto& [representative, replacementCandidates]: replacementCandidates)
+			std::sort(replacementCandidates.begin(), replacementCandidates.end(), [&](u256 const& _lhs, u256 const& _rhs)
+			{
+				return tagOffsets[_lhs] < tagOffsets[_rhs];
+			});
+
+		for (auto&& [tag, representative]: tagToRepresentative)
+		{
+			u256 replacement = replacementCandidates.at(representative).back();
+			if (tag != replacement)
+			{
+				m_replacedTags[tag] = replacement;
+			}
 		}
 
 		if (!applyTagReplacement(m_items, m_replacedTags))

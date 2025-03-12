@@ -68,7 +68,7 @@ packagename=solc
 # This needs to be a still active release
 static_build_distribution=noble
 
-DISTRIBUTIONS="jammy noble oracular"
+DISTRIBUTIONS="jammy noble oracular plucky"
 
 if is_release
 then
@@ -103,17 +103,14 @@ else
     fi
     if [ "$distribution" = focal ]
     then
-        SMTDEPENDENCY="libz3-static-dev,
-            libcvc4-dev,
+        SMTDEPENDENCY="libcvc4-dev,
             "
     elif [ "$distribution" = disco ]
     then
-        SMTDEPENDENCY="libz3-static-dev,
-            libcvc4-dev,
+        SMTDEPENDENCY="libcvc4-dev,
             "
     else
-        SMTDEPENDENCY="libz3-static-dev,
-            "
+        SMTDEPENDENCY=""
     fi
     CMAKE_OPTIONS=""
 fi

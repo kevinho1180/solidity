@@ -28,8 +28,7 @@
 namespace solidity::yul
 {
 
-class YulString;
-using YulName = YulString;
+using YulName = std::size_t;
 
 enum class LiteralKind;
 class LiteralValue;

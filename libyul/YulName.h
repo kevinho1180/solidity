@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <libyul/YulString.h>
+#include <libyul/ASTLabelRegistry.h>
 
 namespace solidity::yul
 {
-using YulName = YulString;
+using YulName = ASTLabelRegistry::LabelID;
 }

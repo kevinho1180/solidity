@@ -45,7 +45,6 @@ add_library(yul
 	YulControlFlowGraphExporter.h
 	YulControlFlowGraphExporter.cpp
 	YulName.h
-	YulString.h
 	backends/evm/AbstractAssembly.h
 	backends/evm/AsmCodeGen.cpp
 	backends/evm/AsmCodeGen.h

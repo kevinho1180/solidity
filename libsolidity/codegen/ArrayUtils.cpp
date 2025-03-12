@@ -290,9 +290,9 @@ void ArrayUtils::copyArrayToStorage(ArrayType const& _targetType, ArrayType cons
 			_context << Instruction::POP << Instruction::SWAP1 << Instruction::POP;
 			// stack: target_ref target_data_end target_data_pos_updated
 			if (targetBaseType->storageBytes() < 32)
-				utils.clearStorageLoop(TypeProvider::uint256());
+				utils.clearStorageLoop(TypeProvider::uint256(), false); // TODO: check the boolean
 			else
-				utils.clearStorageLoop(targetBaseType);
+				utils.clearStorageLoop(targetBaseType, false); // TODO: check the boolean
 			_context << Instruction::POP;
 		}
 	);
@@ -590,9 +590,9 @@ void ArrayUtils::clearArray(ArrayType const& _typeIn) const
 				ArrayUtils(_context).convertLengthToSize(_type);
 				_context << Instruction::ADD << Instruction::SWAP1;
 				if (_type.baseType()->storageBytes() < 32)
-					ArrayUtils(_context).clearStorageLoop(TypeProvider::uint256());
+					ArrayUtils(_context).clearStorageLoop(TypeProvider::uint256(), !_type.isDynamicallySized()); // TODO: check boolean
 				else
-					ArrayUtils(_context).clearStorageLoop(_type.baseType());
+					ArrayUtils(_context).clearStorageLoop(_type.baseType(), !_type.isDynamicallySized()); // TODO: check boolean
 				_context << Instruction::POP;
 			}
 			solAssert(_context.stackHeight() == stackHeightStart - 2, "");
@@ -631,9 +631,9 @@ void ArrayUtils::clearDynamicArray(ArrayType const& _type) const
 		<< Instruction::SWAP1;
 	// stack: data_pos_end data_pos
 	if (_type.storageStride() < 32)
-		clearStorageLoop(TypeProvider::uint256());
+		clearStorageLoop(TypeProvider::uint256(), false); // TODO: check boolean
 	else
-		clearStorageLoop(_type.baseType());
+		clearStorageLoop(_type.baseType(), false); // TODO: check boolean
 	// cleanup
 	m_context << endTag;
 	m_context << Instruction::POP;
@@ -738,7 +738,7 @@ void ArrayUtils::resizeDynamicArray(ArrayType const& _typeIn) const
 				ArrayUtils(_context).convertLengthToSize(_type);
 				_context << Instruction::DUP2 << Instruction::ADD << Instruction::SWAP1;
 				// stack: ref new_length current_length first_word data_location_end data_location
-				ArrayUtils(_context).clearStorageLoop(TypeProvider::uint256());
+				ArrayUtils(_context).clearStorageLoop(TypeProvider::uint256(), false);
 				_context << Instruction::POP;
 				// stack: ref new_length current_length first_word
 				solAssert(_context.stackHeight() - stackHeightStart == 4 - 2, "3");
@@ -777,9 +777,9 @@ void ArrayUtils::resizeDynamicArray(ArrayType const& _typeIn) const
 			_context << Instruction::SWAP2 << Instruction::ADD;
 			// stack: ref new_length delete_end delete_start
 			if (_type.storageStride() < 32)
-				ArrayUtils(_context).clearStorageLoop(TypeProvider::uint256());
+				ArrayUtils(_context).clearStorageLoop(TypeProvider::uint256(), false);
 			else
-				ArrayUtils(_context).clearStorageLoop(_type.baseType());
+				ArrayUtils(_context).clearStorageLoop(_type.baseType(), false);
 
 			_context << resizeEnd;
 			// cleanup
@@ -921,14 +921,14 @@ void ArrayUtils::popStorageArrayElement(ArrayType const& _type) const
 	}
 }
 
-void ArrayUtils::clearStorageLoop(Type const* _type) const
+void ArrayUtils::clearStorageLoop(Type const* _type, bool _assumeEndAfterStart) const
 {
 	solAssert(_type->storageBytes() >= 32, "");
 	m_context.callLowLevelFunction(
 		"$clearStorageLoop_" + _type->identifier(),
 		2,
 		1,
-		[_type](CompilerContext& _context)
+		[_type, _assumeEndAfterStart](CompilerContext& _context)
 		{
 			unsigned stackHeightStart = _context.stackHeight();
 			if (_type->category() == Type::Category::Mapping)
@@ -943,8 +943,11 @@ void ArrayUtils::clearStorageLoop(Type const* _type) const
 			// check for loop condition
 			_context <<
 				Instruction::DUP1 <<
-				Instruction::DUP3 <<
-				Instruction::EQ;
+				Instruction::DUP3;
+			if (_assumeEndAfterStart)
+				_context << Instruction::EQ;
+			else
+				_context << Instruction::GT << Instruction::ISZERO;
 			evmasm::AssemblyItem zeroLoopEnd = _context.newTag();
 			_context.appendConditionalJumpTo(zeroLoopEnd);
 			// delete

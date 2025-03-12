@@ -1431,7 +1431,7 @@ std::string YulUtilFunctions::cleanUpStorageArrayEndFunction(ArrayType const& _t
 		)")
 		("convertToSize", arrayConvertLengthToSize(_type))
 		("dataPosition", arrayDataAreaFunction(_type))
-		("clearStorageRange", clearStorageRangeFunction(*_type.baseType()))
+		("clearStorageRange", clearStorageRangeFunction(*_type.baseType(), false))
 		("packed", _type.baseType()->storageBytes() <= 16)
 		("itemsPerSlot", std::to_string(32 / _type.baseType()->storageBytes()))
 		("storageBytes", std::to_string(_type.baseType()->storageBytes()))
@@ -1483,7 +1483,7 @@ std::string YulUtilFunctions::cleanUpDynamicByteArrayEndSlotsFunction(ArrayType 
 		)")
 		("dataLocation", arrayDataAreaFunction(_type))
 		("div32Ceil", divide32CeilFunction())
-		("clearStorageRange", clearStorageRangeFunction(*_type.baseType()))
+		("clearStorageRange", clearStorageRangeFunction(*_type.baseType(), false))
 		.render();
 	});
 }
@@ -1523,7 +1523,7 @@ std::string YulUtilFunctions::decreaseByteArraySizeFunction(ArrayType const& _ty
 			("functionName", functionName)
 			("dataPosition", arrayDataAreaFunction(_type))
 			("partialClearStorageSlot", partialClearStorageSlotFunction())
-			("clearStorageRange", clearStorageRangeFunction(*_type.baseType()))
+			("clearStorageRange", clearStorageRangeFunction(*_type.baseType(), true))
 			("transitLongToShort", byteArrayTransitLongToShortFunction(_type))
 			("div32Ceil", divide32CeilFunction())
 			("encodeUsedSetLen", shortByteArrayEncodeUsedAreaSetLengthFunction())
@@ -1817,7 +1817,7 @@ std::string YulUtilFunctions::partialClearStorageSlotFunction()
 	});
 }
 
-std::string YulUtilFunctions::clearStorageRangeFunction(Type const& _type)
+std::string YulUtilFunctions::clearStorageRangeFunction(Type const& _type, bool _assumeEndAfterStart)
 {
 	if (_type.storageBytes() < 32)
 		solAssert(_type.isValueType(), "");
@@ -1827,13 +1827,14 @@ std::string YulUtilFunctions::clearStorageRangeFunction(Type const& _type)
 	return m_functionCollector.createFunction(functionName, [&]() {
 		return Whiskers(R"(
 			function <functionName>(start, end) {
-				for {} sub(start, end) { start := add(start, <increment>) }
+				for {} <compare>(start, end) { start := add(start, <increment>) }
 				{
 					<setToZero>(start, 0)
 				}
 			}
 		)")
 		("functionName", functionName)
+		("compare", _assumeEndAfterStart ? "sub" : "lt")
 		("setToZero", storageSetToZeroFunction(_type.storageBytes() < 32 ? *TypeProvider::uint256() : _type, VariableDeclaration::Location::Unspecified))
 		("increment", _type.storageSize().str())
 		.render();
@@ -1871,7 +1872,7 @@ std::string YulUtilFunctions::clearStorageArrayFunction(ArrayType const& _type)
 		(
 			"clearRange",
 			_type.baseType()->category() != Type::Category::Mapping ?
-			clearStorageRangeFunction((_type.baseType()->storageBytes() < 32) ? *TypeProvider::uint256() : *_type.baseType()) :
+			clearStorageRangeFunction((_type.baseType()->storageBytes() < 32) ? *TypeProvider::uint256() : *_type.baseType(), true) :
 			""
 		)
 		("lenToSize", arrayConvertLengthToSize(_type))

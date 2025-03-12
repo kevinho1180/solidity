@@ -268,7 +268,7 @@ public:
 	/// @returns the name of a function that will clear the storage area given
 	/// by the start and end (exclusive) parameters (slots).
 	/// signature: (start, end)
-	std::string clearStorageRangeFunction(Type const& _type);
+	std::string clearStorageRangeFunction(Type const& _type, bool _assumeEndAfterStart);
 
 	/// @returns the name of a function that will clear the given storage array
 	/// signature: (slot) ->

@@ -13,8 +13,8 @@ object "object" {
         }
         function z() -> y
         { y := calldataload(0) }
-        function z_1(r) -> y
-        { y := calldataload(r) }
+        function z_1(r) -> y_1
+        { y_1 := calldataload(r) }
     }
 }
 
@@ -39,7 +39,7 @@ tag_4:
     /* "yul_function_name_clashes_different_params/input.yul":135:147   */
   swap1
   sstore
-    /* "yul_function_name_clashes_different_params/input.yul":27:284   */
+    /* "yul_function_name_clashes_different_params/input.yul":27:288   */
   stop
     /* "yul_function_name_clashes_different_params/input.yul":166:216   */
 tag_1:
@@ -50,10 +50,10 @@ tag_1:
     /* "yul_function_name_clashes_different_params/input.yul":166:216   */
   swap1
   jump	// out
-    /* "yul_function_name_clashes_different_params/input.yul":225:278   */
+    /* "yul_function_name_clashes_different_params/input.yul":225:282   */
 tag_2:
-    /* "yul_function_name_clashes_different_params/input.yul":261:276   */
+    /* "yul_function_name_clashes_different_params/input.yul":265:280   */
   calldataload
-    /* "yul_function_name_clashes_different_params/input.yul":225:278   */
+    /* "yul_function_name_clashes_different_params/input.yul":225:282   */
   swap1
   jump	// out

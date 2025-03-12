@@ -154,8 +154,6 @@ add_library(yul
 	optimiser/Metrics.h
 	optimiser/NameCollector.cpp
 	optimiser/NameCollector.h
-	optimiser/NameDispenser.cpp
-	optimiser/NameDispenser.h
 	optimiser/NameDisplacer.cpp
 	optimiser/NameDisplacer.h
 	optimiser/OptimiserStep.h

@@ -50,8 +50,8 @@ struct StackTooDeepError: virtual YulException
 	{
 		*this << util::errinfo_comment(_message);
 	}
-	YulName functionName;
-	YulName variable;
+	YulName functionName{};
+	YulName variable{};
 	int depth;
 };
 

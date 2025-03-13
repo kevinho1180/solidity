@@ -31,7 +31,10 @@ using namespace solidity::langutil;
 using namespace solidity::util;
 using namespace solidity::yul;
 
-YulControlFlowGraphExporter::YulControlFlowGraphExporter(ControlFlow const& _controlFlow, ControlFlowLiveness const* _liveness): m_controlFlow(_controlFlow), m_liveness(_liveness)
+YulControlFlowGraphExporter::YulControlFlowGraphExporter(ASTLabelRegistry const& _labels, ControlFlow const& _controlFlow, ControlFlowLiveness const* _liveness):
+	m_labels(_labels),
+	m_controlFlow(_controlFlow),
+	m_liveness(_liveness)
 {
 }
 
@@ -67,7 +70,7 @@ Json YulControlFlowGraphExporter::run()
 	Json functionsJson = Json::object();
 	size_t index = 0;
 	for (auto const& [function, functionGraph]: m_controlFlow.functionGraphMapping)
-		functionsJson[function->name.str()] = exportFunction(*functionGraph, m_liveness ? m_liveness->functionLiveness[index++].get() : nullptr);
+		functionsJson[m_labels[function->name]] = exportFunction(*functionGraph, m_liveness ? m_liveness->functionLiveness[index++].get() : nullptr);
 	yulObjectJson["functions"] = functionsJson;
 
 	return yulObjectJson;
@@ -180,7 +183,7 @@ Json YulControlFlowGraphExporter::toJson(Json& _ret, SSACFG const& _cfg, SSACFG:
 	std::visit(util::GenericVisitor{
 		[&](SSACFG::Call const& _call) {
 			_ret["type"] = "FunctionCall";
-			opJson["op"] = _call.function.get().name.str();
+			opJson["op"] = m_labels[_call.function.get().name];
 		},
 		[&](SSACFG::BuiltinCall const& _call) {
 			_ret["type"] = "BuiltinCall";

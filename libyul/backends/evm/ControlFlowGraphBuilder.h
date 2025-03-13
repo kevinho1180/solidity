@@ -31,7 +31,7 @@ class ControlFlowGraphBuilder
 public:
 	ControlFlowGraphBuilder(ControlFlowGraphBuilder const&) = delete;
 	ControlFlowGraphBuilder& operator=(ControlFlowGraphBuilder const&) = delete;
-	static std::unique_ptr<CFG> build(AsmAnalysisInfo const& _analysisInfo, Dialect const& _dialect, Block const& _block);
+	static std::unique_ptr<CFG> build(AsmAnalysisInfo const& _analysisInfo, LabelIDDispenser& _nameDispenser, Dialect const& _dialect, Block const& _block);
 
 	StackSlot operator()(Expression const& _literal);
 	StackSlot operator()(Literal const& _literal);
@@ -57,6 +57,7 @@ private:
 		CFG& _graph,
 		AsmAnalysisInfo const& _analysisInfo,
 		std::map<FunctionDefinition const*, ControlFlowSideEffects> const& _functionSideEffects,
+		LabelIDDispenser& _nameDispenser,
 		Dialect const& _dialect
 	);
 	void registerFunction(FunctionDefinition const& _function);
@@ -80,6 +81,7 @@ private:
 	CFG& m_graph;
 	AsmAnalysisInfo const& m_info;
 	std::map<FunctionDefinition const*, ControlFlowSideEffects> const& m_functionSideEffects;
+	LabelIDDispenser& m_nameDispenser;
 	Dialect const& m_dialect;
 	CFG::BasicBlock* m_currentBlock = nullptr;
 	Scope* m_scope = nullptr;

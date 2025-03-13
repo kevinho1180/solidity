@@ -35,7 +35,7 @@ struct ControlFlowLiveness{
 	std::unique_ptr<SSACFGLiveness> mainLiveness;
 	std::vector<std::unique_ptr<SSACFGLiveness>> functionLiveness;
 
-	std::string toDot() const;
+	std::string toDot(ASTLabelRegistry const& _labels) const;
 };
 
 struct ControlFlow
@@ -52,16 +52,17 @@ struct ControlFlow
 		return nullptr;
 	}
 
-	std::string toDot(ControlFlowLiveness const* _liveness=nullptr) const
+	std::string toDot(ASTLabelRegistry const& _labels, ControlFlowLiveness const* _liveness=nullptr) const
 	{
 		if (_liveness)
 			yulAssert(&_liveness->controlFlow.get() == this);
 		std::ostringstream output;
 		output << "digraph SSACFG {\nnodesep=0.7;\ngraph[fontname=\"DejaVu Sans\"]\nnode[shape=box,fontname=\"DejaVu Sans\"];\n\n";
-		output << mainGraph->toDot(false, std::nullopt, _liveness ? _liveness->mainLiveness.get() : nullptr);
+		output << mainGraph->toDot(_labels, false, std::nullopt, _liveness ? _liveness->mainLiveness.get() : nullptr);
 
 		for (size_t index=0; index < functionGraphs.size(); ++index)
 			output << functionGraphs[index]->toDot(
+				_labels,
 				false,
 				index+1,
 				_liveness ? _liveness->functionLiveness[index].get() : nullptr

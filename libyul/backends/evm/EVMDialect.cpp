@@ -287,16 +287,16 @@ std::vector<std::optional<BuiltinFunctionForEVM>> createBuiltins(langutil::EVMVe
 			yulAssert(_context.currentObject, "No object available.");
 			yulAssert(_call.arguments.size() == 1, "");
 			Expression const& arg = _call.arguments.front();
-			YulName const dataName (formatLiteral(std::get<Literal>(arg)));
-			if (_context.currentObject->name == dataName.str())
+			std::string const dataName = formatLiteral(std::get<Literal>(arg));
+			if (_context.currentObject->name == dataName)
 				_assembly.appendAssemblySize();
 			else
 			{
 			std::vector<size_t> subIdPath =
-					_context.subIDs.count(dataName.str()) == 0 ?
-						_context.currentObject->pathToSubObject(dataName.str()) :
-						std::vector<size_t>{_context.subIDs.at(dataName.str())};
-				yulAssert(!subIdPath.empty(), "Could not find assembly object <" + dataName.str() + ">.");
+					_context.subIDs.count(dataName) == 0 ?
+						_context.currentObject->pathToSubObject(dataName) :
+						std::vector<size_t>{_context.subIDs.at(dataName)};
+				yulAssert(!subIdPath.empty(), "Could not find assembly object <" + dataName + ">.");
 				_assembly.appendDataSize(subIdPath);
 			}
 		}));
@@ -308,16 +308,16 @@ std::vector<std::optional<BuiltinFunctionForEVM>> createBuiltins(langutil::EVMVe
 			yulAssert(_context.currentObject, "No object available.");
 			yulAssert(_call.arguments.size() == 1, "");
 			Expression const& arg = _call.arguments.front();
-			YulName const dataName (formatLiteral(std::get<Literal>(arg)));
-			if (_context.currentObject->name == dataName.str())
+			std::string const dataName = formatLiteral(std::get<Literal>(arg));
+			if (_context.currentObject->name == dataName)
 				_assembly.appendConstant(0);
 			else
 			{
 			std::vector<size_t> subIdPath =
-					_context.subIDs.count(dataName.str()) == 0 ?
-						_context.currentObject->pathToSubObject(dataName.str()) :
-						std::vector<size_t>{_context.subIDs.at(dataName.str())};
-				yulAssert(!subIdPath.empty(), "Could not find assembly object <" + dataName.str() + ">.");
+					_context.subIDs.count(dataName) == 0 ?
+						_context.currentObject->pathToSubObject(dataName) :
+						std::vector<size_t>{_context.subIDs.at(dataName)};
+				yulAssert(!subIdPath.empty(), "Could not find assembly object <" + dataName + ">.");
 				_assembly.appendDataOffset(subIdPath);
 			}
 		}));

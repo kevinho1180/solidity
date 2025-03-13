@@ -39,13 +39,13 @@ namespace
 class SSACFGPrinter
 {
 public:
-	SSACFGPrinter(SSACFG const& _cfg, SSACFG::BlockId _blockId, SSACFGLiveness const* _liveness):
-		m_cfg(_cfg), m_functionIndex(0), m_liveness(_liveness)
+	SSACFGPrinter(SSACFG const& _cfg, ASTLabelRegistry const& _labels, SSACFG::BlockId _blockId, SSACFGLiveness const* _liveness):
+		m_cfg(_cfg), m_labels(_labels), m_functionIndex(0), m_liveness(_liveness)
 	{
 		printBlock(_blockId);
 	}
-	SSACFGPrinter(SSACFG const& _cfg, size_t _functionIndex, Scope::Function const& _function, SSACFGLiveness const* _liveness):
-		m_cfg(_cfg), m_functionIndex(_functionIndex), m_liveness(_liveness)
+	SSACFGPrinter(SSACFG const& _cfg, ASTLabelRegistry const& _labels, size_t _functionIndex, Scope::Function const& _function, SSACFGLiveness const* _liveness):
+		m_cfg(_cfg), m_labels(_labels), m_functionIndex(_functionIndex), m_liveness(_liveness)
 	{
 		printFunction(_function);
 	}
@@ -161,11 +161,11 @@ private:
 			}
 			for (auto const& operation: _block.operations)
 			{
-				std::string const label = std::visit(GenericVisitor{
+				std::string_view const label = std::visit(GenericVisitor{
 					[&](SSACFG::Call const& _call) {
-						return _call.function.get().name.str();
+						return m_labels[_call.function.get().name];
 					},
-					[&](SSACFG::BuiltinCall const& _call) {
+					[&](SSACFG::BuiltinCall const& _call) -> std::string_view {
 						return _call.builtin.get().name;
 					},
 				}, operation.kind);
@@ -266,19 +266,20 @@ private:
 
 	void printFunction(Scope::Function const& _fun)
 	{
-		static auto constexpr returnsTransform = [](auto const& functionReturnValue) { return escape(functionReturnValue.get().name.str()); };
+		static auto returnsTransform = [&](auto const& functionReturnValue) { return escape(m_labels[functionReturnValue.get().name]); };
 		static auto constexpr argsTransform = [](auto const& arg) { return fmt::format("v{}", std::get<1>(arg).value); };
-		m_result << "FunctionEntry_" << escape(_fun.name.str()) << "_" << m_cfg.entry.value << " [label=\"";
+		m_result << "FunctionEntry_" << escape(m_labels[_fun.name]) << "_" << m_cfg.entry.value << " [label=\"";
 		if (!m_cfg.returns.empty())
-			m_result << fmt::format("function {0}:\n {1} := {0}({2})", escape(_fun.name.str()), fmt::join(m_cfg.returns | ranges::views::transform(returnsTransform), ", "), fmt::join(m_cfg.arguments | ranges::views::transform(argsTransform), ", "));
+			m_result << fmt::format("function {0}:\n {1} := {0}({2})", escape(m_labels[_fun.name]), fmt::join(m_cfg.returns | ranges::views::transform(returnsTransform), ", "), fmt::join(m_cfg.arguments | ranges::views::transform(argsTransform), ", "));
 		else
-			m_result << fmt::format("function {0}:\n {0}({1})", escape(_fun.name.str()), fmt::join(m_cfg.arguments | ranges::views::transform(argsTransform), ", "));
+			m_result << fmt::format("function {0}:\n {0}({1})", escape(m_labels[_fun.name]), fmt::join(m_cfg.arguments | ranges::views::transform(argsTransform), ", "));
 		m_result << "\"];\n";
-		m_result << "FunctionEntry_" << escape(_fun.name.str()) << "_" << m_cfg.entry.value << " -> Block" << m_functionIndex << "_" << m_cfg.entry.value << ";\n";
+		m_result << "FunctionEntry_" << escape(m_labels[_fun.name]) << "_" << m_cfg.entry.value << " -> Block" << m_functionIndex << "_" << m_cfg.entry.value << ";\n";
 		printBlock(m_cfg.entry);
 	}
 
 	SSACFG const& m_cfg;
+	ASTLabelRegistry const& m_labels;
 	size_t m_functionIndex;
 	SSACFGLiveness const* m_liveness;
 	std::stringstream m_result{};
@@ -286,6 +287,7 @@ private:
 }
 
 std::string SSACFG::toDot(
+	ASTLabelRegistry const& _labels,
 	bool _includeDiGraphDefinition,
 	std::optional<size_t> _functionIndex,
 	SSACFGLiveness const* _liveness
@@ -295,9 +297,9 @@ std::string SSACFG::toDot(
 	if (_includeDiGraphDefinition)
 		output << "digraph SSACFG {\nnodesep=0.7;\ngraph[fontname=\"DejaVu Sans\"]\nnode[shape=box,fontname=\"DejaVu Sans\"];\n\n";
 	if (function)
-		output << SSACFGPrinter(*this, _functionIndex ? *_functionIndex : static_cast<size_t>(1), *function, _liveness);
+		output << SSACFGPrinter(*this, _labels, _functionIndex ? *_functionIndex : static_cast<size_t>(1), *function, _liveness);
 	else
-		output << SSACFGPrinter(*this, entry, _liveness);
+		output << SSACFGPrinter(*this, _labels, entry, _liveness);
 	if (_includeDiGraphDefinition)
 		output << "}\n";
 	return output.str();

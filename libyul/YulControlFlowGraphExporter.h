@@ -28,13 +28,14 @@ using namespace yul;
 class YulControlFlowGraphExporter
 {
 public:
-	YulControlFlowGraphExporter(ControlFlow const& _controlFlow, ControlFlowLiveness const* _liveness=nullptr);
+	YulControlFlowGraphExporter(ASTLabelRegistry const& _labels, ControlFlow const& _controlFlow, ControlFlowLiveness const* _liveness=nullptr);
 	Json run();
 	Json exportBlock(SSACFG const& _cfg, SSACFG::BlockId _blockId, SSACFGLiveness const* _liveness);
 	Json exportFunction(SSACFG const& _cfg, SSACFGLiveness const* _liveness);
 	std::string varToString(SSACFG const& _cfg, SSACFG::ValueId _var);
 
 private:
+	ASTLabelRegistry const& m_labels;
 	ControlFlow const& m_controlFlow;
 	ControlFlowLiveness const* m_liveness;
 	Json toJson(SSACFG const& _cfg, SSACFG::BlockId _blockId, SSACFGLiveness const* _liveness);

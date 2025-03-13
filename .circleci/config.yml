@@ -834,8 +834,6 @@ defaults:
       binary_type: native
       image: cimg/rust:1.74.0-node
       resource_class: medium
-      # TODO: Use nightly Foundry builds after https://github.com/PaulRBerg/prb-math/issues/248 is fixed
-      foundry_version: "v0.3.0"
 
   - job_native_test_ext_elementfi: &job_native_test_ext_elementfi
       <<: *requires_b_ubu_static

@@ -84,7 +84,7 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 	# Configuration-specific compiler settings.
 	set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g3 -DETH_DEBUG")
 	set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-	set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
+	set(CMAKE_CXX_FLAGS_RELEASE        "-O2 -DNDEBUG")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g3")
 
 	# Additional GCC-specific compiler settings.
@@ -92,12 +92,6 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 		# Check that we've got GCC 11.0 or newer.
 		if (NOT (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11.0))
 			message(FATAL_ERROR "${PROJECT_NAME} requires g++ 11.0 or greater.")
-		endif ()
-
-		# GCC 12 emits warnings for string concatenations with operator+ under O3
-		# See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105651
-		if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.0 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
-			add_compile_options(-Wno-error=restrict)
 		endif ()
 
 		# Use fancy colors in the compiler diagnostics
@@ -139,7 +133,7 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 			# Leave only exported symbols as public and aggressively remove others
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdata-sections -ffunction-sections -fvisibility=hidden")
 			# Optimisation level
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 			# Re-enable exception catching (optimisations above -O1 disable it)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s DISABLE_EXCEPTION_CATCHING=0")
 			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s DISABLE_EXCEPTION_CATCHING=0")

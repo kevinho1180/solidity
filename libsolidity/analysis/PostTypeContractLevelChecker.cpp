@@ -23,6 +23,7 @@
 #include <libsolidity/analysis/PostTypeContractLevelChecker.h>
 
 #include <fmt/format.h>
+#include <libsolidity/analysis/ConstantEvaluator.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/ASTUtils.h>
 #include <libsolidity/ast/TypeProvider.h>
@@ -101,8 +102,10 @@ void PostTypeContractLevelChecker::checkStorageLayoutSpecifier(ContractDefinitio
 	}
 
 	auto const* baseSlotExpressionType = type(baseSlotExpression);
-	auto const* rationalType = dynamic_cast<RationalNumberType const*>(baseSlotExpressionType);
-	if (!rationalType)
+	if (
+		!dynamic_cast<IntegerType const*>(baseSlotExpressionType) &&
+		!dynamic_cast<RationalNumberType const*>(baseSlotExpressionType)
+	)
 	{
 		m_errorReporter.typeError(
 			6396_error,
@@ -112,18 +115,48 @@ void PostTypeContractLevelChecker::checkStorageLayoutSpecifier(ContractDefinitio
 		return;
 	}
 
-	if (rationalType->isFractional())
+	rational baseSlotRationalValue;
+	if (auto const integerType = dynamic_cast<IntegerType const*>(baseSlotExpressionType))
 	{
-		m_errorReporter.typeError(
-			1763_error,
-			baseSlotExpression.location(),
-			"The base slot of the storage layout must evaluate to an integer."
-		);
-		return;
+		if (integerType->isSigned())
+		{
+			m_errorReporter.typeError(
+				1481_error,
+				baseSlotExpression.location(),
+				"The base slot expression must have an unsigned integer type."
+			);
+			return;
+		}
+		std::optional<ConstantEvaluator::TypedRational> typedRational = ConstantEvaluator::evaluate(m_errorReporter, baseSlotExpression);
+		if (!typedRational)
+		{
+			m_errorReporter.typeError(
+				1505_error,
+				baseSlotExpression.location(),
+				"The base slot expression cannot be evaluated during compilation."
+			);
+			return;
+		}
+		baseSlotRationalValue = typedRational->value;
 	}
-	solAssert(rationalType->value().denominator() == 1);
+	else
+	{
+		auto const* rationalType = dynamic_cast<RationalNumberType const*>(baseSlotExpressionType);
+		solAssert(rationalType);
+		if (rationalType->isFractional())
+		{
+			m_errorReporter.typeError(
+				1763_error,
+				baseSlotExpression.location(),
+				"The base slot of the storage layout must evaluate to an integer."
+			);
+			return;
+		}
+		baseSlotRationalValue = rationalType->value();
+	}
 
-	bigint baseSlot = rationalType->value().numerator();
+	solAssert(baseSlotRationalValue.denominator() == 1);
+	bigint baseSlot = baseSlotRationalValue.numerator();
 	if (!(0 <= baseSlot && baseSlot <= std::numeric_limits<u256>::max()))
 	{
 		m_errorReporter.typeError(

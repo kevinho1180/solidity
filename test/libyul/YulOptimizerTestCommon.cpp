@@ -66,6 +66,8 @@
 
 #include <libsolidity/interface/OptimiserSettings.h>
 
+#include <fmt/format.h>
+
 #include <random>
 
 using namespace solidity;
@@ -90,60 +92,65 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 	)
 		solUnimplemented("The current implementation of YulOptimizerTests ignores subobjects that are not Data.");
 
+	m_labels = std::make_unique<ASTLabelRegistry>(m_object->code()->labels());
+	m_nameDispenser = std::make_unique<LabelIDDispenser>(*m_labels);
 	m_namedSteps = {
 		{"disambiguator", [&]() { return disambiguate(); }},
 		{"nameDisplacer", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
+			ASTLabelRegistryBuilder builder{m_nameDispenser->generateNewLabels(block, m_context->dialect)};
+			std::set<YulName> namesToFree;
+			std::set<std::string> labelsToFree;
+			for (size_t i = 1; i <= 5; ++i)
+			{
+				auto const label = fmt::format("illegal{}", i);
+				labelsToFree.insert(label);
+				namesToFree.insert(builder.define(label));
+			}
+			m_labels = std::make_unique<ASTLabelRegistry>(builder.build());
+			m_nameDispenser = std::make_unique<LabelIDDispenser>(*m_labels, labelsToFree);
 			NameDisplacer{
 				*m_nameDispenser,
-				{"illegal1"_yulname, "illegal2"_yulname, "illegal3"_yulname, "illegal4"_yulname, "illegal5"_yulname}
+				namesToFree
 			}(block);
 			return block;
 		}},
 		{"blockFlattener", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionGrouper::run(*m_context, block);
 			BlockFlattener::run(*m_context, block);
 			return block;
 		}},
 		{"constantOptimiser", [&]() {
 			auto block = std::get<Block>(ASTCopier{}(m_object->code()->root()));
-			updateContext(block);
+			updateContext();
 			GasMeter meter(dynamic_cast<EVMDialect const&>(*m_object->dialect()), false, 200);
 			ConstantOptimiser{dynamic_cast<EVMDialect const&>(*m_object->dialect()), meter}(block);
 			return block;
 		}},
 		{"varDeclInitializer", [&]() {
 			auto block = std::get<Block>(ASTCopier{}(m_object->code()->root()));
-			updateContext(block);
+			updateContext();
 			VarDeclInitializer::run(*m_context, block);
-			return block;
-		}},
-		{"varNameCleaner", [&]() {
-			auto block = disambiguate();
-			updateContext(block);
-			FunctionHoister::run(*m_context, block);
-			FunctionGrouper::run(*m_context, block);
-			VarNameCleaner::run(*m_context, block);
 			return block;
 		}},
 		{"forLoopConditionIntoBody", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopConditionIntoBody::run(*m_context, block);
 			return block;
 		}},
 		{"forLoopInitRewriter", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			return block;
 		}},
 		{"commonSubexpressionEliminator", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			FunctionHoister::run(*m_context, block);
 			CommonSubexpressionEliminator::run(*m_context, block);
@@ -151,31 +158,31 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"conditionalUnsimplifier", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ConditionalUnsimplifier::run(*m_context, block);
 			return block;
 		}},
 		{"conditionalSimplifier", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ConditionalSimplifier::run(*m_context, block);
 			return block;
 		}},
 		{"expressionSplitter", [&]() {
 			auto block = std::get<Block>(ASTCopier{}(m_object->code()->root()));
-			updateContext(block);
+			updateContext();
 			ExpressionSplitter::run(*m_context, block);
 			return block;
 		}},
 		{"expressionJoiner", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ExpressionJoiner::run(*m_context, block);
 			return block;
 		}},
 		{"splitJoin", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ExpressionSplitter::run(*m_context, block);
 			ExpressionJoiner::run(*m_context, block);
 			ExpressionJoiner::run(*m_context, block);
@@ -183,32 +190,32 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"functionGrouper", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionGrouper::run(*m_context, block);
 			return block;
 		}},
 		{"functionHoister", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionHoister::run(*m_context, block);
 			return block;
 		}},
 		{"functionSpecializer", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionHoister::run(*m_context, block);
 			FunctionSpecializer::run(*m_context, block);
 			return block;
 		}},
 		{"expressionInliner", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ExpressionInliner::run(*m_context, block);
 			return block;
 		}},
 		{"fullInliner", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionHoister::run(*m_context, block);
 			FunctionGrouper::run(*m_context, block);
 			ExpressionSplitter::run(*m_context, block);
@@ -218,7 +225,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"fullInlinerWithoutSplitter", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionHoister::run(*m_context, block);
 			FunctionGrouper::run(*m_context, block);
 			FullInliner::run(*m_context, block);
@@ -226,7 +233,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"rematerialiser", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			FunctionHoister::run(*m_context, block);
 			Rematerialiser::run(*m_context, block);
@@ -234,7 +241,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"expressionSimplifier", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			FunctionHoister::run(*m_context, block);
 			ExpressionSplitter::run(*m_context, block);
@@ -249,7 +256,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"fullSimplify", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionGrouper::run(*m_context, block);
 			BlockFlattener::run(*m_context, block);
 			ExpressionSplitter::run(*m_context, block);
@@ -266,7 +273,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"unusedFunctionParameterPruner", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			FunctionHoister::run(*m_context, block);
 			LiteralRematerialiser::run(*m_context, block);
@@ -275,41 +282,41 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"unusedPruner", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			UnusedPruner::run(*m_context, block);
 			return block;
 		}},
 		{"circularReferencesPruner", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionHoister::run(*m_context, block);
 			CircularReferencesPruner::run(*m_context, block);
 			return block;
 		}},
 		{"deadCodeEliminator", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			DeadCodeEliminator::run(*m_context, block);
 			return block;
 		}},
 		{"ssaTransform", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			SSATransform::run(*m_context, block);
 			return block;
 		}},
 		{"unusedAssignEliminator", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			UnusedAssignEliminator::run(*m_context, block);
 			return block;
 		}},
 		{"unusedStoreEliminator", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			ExpressionSplitter::run(*m_context, block);
 			SSATransform::run(*m_context, block);
@@ -320,7 +327,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"equalStoreEliminator", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionHoister::run(*m_context, block);
 			ForLoopInitRewriter::run(*m_context, block);
 			EqualStoreEliminator::run(*m_context, block);
@@ -328,7 +335,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"ssaPlusCleanup", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			SSATransform::run(*m_context, block);
 			UnusedAssignEliminator::run(*m_context, block);
@@ -336,7 +343,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"loadResolver", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			FunctionGrouper::run(*m_context, block);
 			BlockFlattener::run(*m_context, block);
 			ForLoopInitRewriter::run(*m_context, block);
@@ -354,7 +361,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"loopInvariantCodeMotion", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			FunctionHoister::run(*m_context, block);
 			LoopInvariantCodeMotion::run(*m_context, block);
@@ -362,14 +369,14 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"controlFlowSimplifier", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			ControlFlowSimplifier::run(*m_context, block);
 			return block;
 		}},
 		{"structuralSimplifier", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			FunctionHoister::run(*m_context, block);
 			LiteralRematerialiser::run(*m_context, block);
@@ -378,7 +385,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"equivalentFunctionCombiner", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			FunctionHoister::run(*m_context, block);
 			EquivalentFunctionCombiner::run(*m_context, block);
@@ -386,13 +393,13 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"ssaReverser", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			SSAReverser::run(*m_context, block);
 			return block;
 		}},
 		{"ssaAndBack", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			// apply SSA
 			SSATransform::run(*m_context, block);
@@ -406,16 +413,19 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"stackCompressor", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			ForLoopInitRewriter::run(*m_context, block);
 			FunctionHoister::run(*m_context, block);
 			FunctionGrouper::run(*m_context, block);
 			size_t maxIterations = 16;
 			{
-				Object object(*m_optimizedObject);
-				object.setCode(std::make_shared<AST>(*m_object->dialect(), ASTLabelRegistry{}, std::get<Block>(ASTCopier{}(block))));
+				m_labels = std::make_unique<ASTLabelRegistry>(m_nameDispenser->generateNewLabels(block, m_context->dialect));
+				m_nameDispenser = std::make_unique<LabelIDDispenser>(*m_labels);
+				Object object{*m_optimizedObject};
+				object.setCode(std::make_shared<AST>(*m_object->dialect(), *m_labels, std::get<Block>(ASTCopier{}(block))));
 				block = std::get<1>(StackCompressor::run(object, true, maxIterations));
 			}
+			updateContext();
 			BlockFlattener::run(*m_context, block);
 			return block;
 		}},
@@ -429,13 +439,14 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 				frontend::OptimiserSettings::DefaultYulOptimiserCleanupSteps,
 				frontend::OptimiserSettings::standard().expectedExecutionsPerDeployment
 			);
+			m_nameDispenser = std::make_unique<LabelIDDispenser>(m_optimizedObject->code()->labels());
 			return std::get<Block>(ASTCopier{}(m_optimizedObject->code()->root()));
 		}},
 		{"stackLimitEvader", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			Object object(*m_optimizedObject);
-			object.setCode(std::make_shared<AST>(*m_object->dialect(), ASTLabelRegistry{}, std::get<Block>(ASTCopier{}(block))));
+			object.setCode(std::make_shared<AST>(*m_object->dialect(), *m_nameDispenser, std::get<Block>(ASTCopier{}(block))));
 			auto const unreachables = CompilabilityChecker{
 				object,
 				true
@@ -445,10 +456,11 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 		}},
 		{"fakeStackLimitEvader", [&]() {
 			auto block = disambiguate();
-			updateContext(block);
+			updateContext();
 			// Mark all variables with a name starting with "$" for escalation to memory.
 			struct FakeUnreachableGenerator: ASTWalker
 			{
+				explicit FakeUnreachableGenerator(ASTLabelRegistry const& _labels): m_labels(_labels) {}
 				std::map<YulName, std::vector<YulName>> fakeUnreachables;
 				using ASTWalker::operator();
 				void operator()(FunctionDefinition const& _function) override
@@ -464,7 +476,7 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 				}
 				void visitVariableName(YulName _var)
 				{
-					if (!_var.empty() && _var.str().front() == '$')
+					if (!ASTLabelRegistry::empty(_var) && m_labels[_var].front() == '$')
 						if (!util::contains(fakeUnreachables[m_currentFunction], _var))
 							fakeUnreachables[m_currentFunction].emplace_back(_var);
 				}
@@ -479,9 +491,11 @@ YulOptimizerTestCommon::YulOptimizerTestCommon(std::shared_ptr<Object const> _ob
 					visitVariableName(_identifier.name);
 					ASTWalker::operator()(_identifier);
 				}
-				YulName m_currentFunction = YulName{};
+				YulName m_currentFunction = ASTLabelRegistry::emptyID();
+				ASTLabelRegistry const& m_labels;
 			};
-			FakeUnreachableGenerator fakeUnreachableGenerator;
+			auto const labels = m_nameDispenser->generateNewLabels(block, m_context->dialect);
+			FakeUnreachableGenerator fakeUnreachableGenerator(labels);
 			fakeUnreachableGenerator(block);
 			StackLimitEvader::run(*m_context, block, fakeUnreachableGenerator.fakeUnreachables);
 			return block;
@@ -499,7 +513,7 @@ bool YulOptimizerTestCommon::runStep()
 	if (m_namedSteps.count(m_optimizerStep))
 	{
 		auto block = m_namedSteps[m_optimizerStep]();
-		m_optimizedObject->setCode(std::make_shared<AST>(*m_object->dialect(), ASTLabelRegistry{}, std::move(block)));
+		m_optimizedObject->setCode(std::make_shared<AST>(*m_object->dialect(), *m_nameDispenser, std::move(block)));
 	}
 	else
 		return false;
@@ -543,13 +557,12 @@ Block const* YulOptimizerTestCommon::run()
 
 Block YulOptimizerTestCommon::disambiguate()
 {
-	auto block = std::get<Block>(Disambiguator(*m_object->dialect(), *m_object->analysisInfo)(m_object->code()->root()));
+	auto block = std::get<Block>(Disambiguator(*m_object->dialect(), *m_object->analysisInfo, *m_nameDispenser)(m_object->code()->root()));
 	return block;
 }
 
-void YulOptimizerTestCommon::updateContext(Block const& _block)
+void YulOptimizerTestCommon::updateContext()
 {
-	m_nameDispenser = std::make_unique<NameDispenser>(*m_object->dialect(), _block, m_reservedIdentifiers);
 	m_context = std::make_unique<OptimiserStepContext>(OptimiserStepContext{
 		*m_object->dialect(),
 		*m_nameDispenser,

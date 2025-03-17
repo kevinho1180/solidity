@@ -73,9 +73,10 @@ TestCase::TestResult ControlFlowSideEffectsTest::run(std::ostream& _stream, std:
 		yulStack.parserResult()->code()->root()
 	);
 	m_obtainedResult.clear();
+	auto const& labels = yulStack.parserResult()->code()->labels();
 	forEach<FunctionDefinition const>(yulStack.parserResult()->code()->root(), [&](FunctionDefinition const& _fun) {
 		std::string effectStr = toString(sideEffects.functionSideEffects().at(&_fun));
-		m_obtainedResult += _fun.name.str() + (effectStr.empty() ? ":" : ": " + effectStr) + "\n";
+		m_obtainedResult += fmt::format("{}{}\n", labels[_fun.name], effectStr.empty() ? ":" : ": " + effectStr);
 	});
 
 	return checkResult(_stream, _linePrefix, _formatted);

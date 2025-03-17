@@ -98,11 +98,21 @@ public:
 				throw std::runtime_error("Could not parse source.");
 			}
 			m_astRoot = std::make_shared<yul::Block>(std::get<yul::Block>(ASTCopier{}(ast->root())));
+			m_dispenser = std::make_unique<LabelIDDispenser>(ast->labels());
+			m_context = std::make_unique<OptimiserStepContext>(
+				OptimiserStepContext{
+					m_dialect,
+					*m_dispenser,
+					m_reservedIdentifiers,
+					OptimiserSettings::standard().expectedExecutionsPerDeployment
+				}
+			);
 			m_analysisInfo = std::make_unique<yul::AsmAnalysisInfo>();
 			AsmAnalyzer analyzer(
 				*m_analysisInfo,
 				errorReporter,
-				m_dialect
+				m_dialect,
+				ast->labels()
 			);
 			if (!analyzer.analyze(*m_astRoot) || errorReporter.hasErrors())
 			{
@@ -170,17 +180,16 @@ public:
 
 	void disambiguate()
 	{
-		*m_astRoot = std::get<yul::Block>(Disambiguator(m_dialect, *m_analysisInfo)(*m_astRoot));
+		*m_astRoot = std::get<yul::Block>(Disambiguator(m_dialect, *m_analysisInfo, *m_dispenser)(*m_astRoot));
 		m_analysisInfo.reset();
-		m_nameDispenser.reset(*m_astRoot);
 	}
 
 	void runSteps(std::string _source, std::string _steps)
 	{
 		parse(_source);
 		disambiguate();
-		OptimiserSuite{m_context}.runSequence(_steps, *m_astRoot);
-		std::cout << AsmPrinter{m_dialect}(*m_astRoot) << std::endl;
+		OptimiserSuite{*m_context}.runSequence(_steps, *m_astRoot);
+		std::cout << AsmPrinter{m_dialect, m_dispenser->generateNewLabels(*m_astRoot, m_dialect)}(*m_astRoot) << std::endl;
 	}
 
 	void runInteractive(std::string _source, bool _disambiguated = false)
@@ -218,17 +227,17 @@ public:
 					case ';':
 					{
 						Object obj;
-						obj.setCode(std::make_shared<AST>(m_dialect, ASTLabelRegistry{}, std::get<yul::Block>(ASTCopier{}(*m_astRoot))));
+						obj.setCode(std::make_shared<AST>(m_dialect, m_context->dispenser, std::get<yul::Block>(ASTCopier{}(*m_astRoot))));
 						*m_astRoot = std::get<1>(StackCompressor::run(obj, true, 16));
 						break;
 					}
 					default:
-						OptimiserSuite{m_context}.runSequence(
+						OptimiserSuite{*m_context}.runSequence(
 							std::string_view(&option, 1),
 							*m_astRoot
 						);
 				}
-				_source = AsmPrinter{m_dialect}(*m_astRoot);
+				_source = AsmPrinter{m_dialect, m_dispenser->generateNewLabels(*m_astRoot, m_dialect)}(*m_astRoot);
 			}
 			catch (...)
 			{
@@ -242,16 +251,11 @@ public:
 
 private:
 	std::shared_ptr<yul::Block> m_astRoot;
+	std::unique_ptr<LabelIDDispenser> m_dispenser;
 	Dialect const& m_dialect{EVMDialect::strictAssemblyForEVMObjects(EVMVersion{}, std::nullopt)};
 	std::unique_ptr<AsmAnalysisInfo> m_analysisInfo;
 	std::set<YulName> const m_reservedIdentifiers = {};
-	NameDispenser m_nameDispenser{m_dialect, m_reservedIdentifiers};
-	OptimiserStepContext m_context{
-		m_dialect,
-		m_nameDispenser,
-		m_reservedIdentifiers,
-		solidity::frontend::OptimiserSettings::standard().expectedExecutionsPerDeployment
-	};
+	std::unique_ptr<OptimiserStepContext> m_context;
 };
 
 int main(int argc, char** argv)

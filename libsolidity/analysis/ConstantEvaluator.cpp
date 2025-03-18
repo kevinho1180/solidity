@@ -26,6 +26,9 @@
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/TypeProvider.h>
 #include <liblangutil/ErrorReporter.h>
+#include <libsolutil/Keccak256.h>
+#include <libsolutil/StringUtils.h>
+#include <libsolutil/FixedHash.h>
 
 #include <limits>
 
@@ -406,4 +409,36 @@ void ConstantEvaluator::endVisit(TupleExpression const& _tuple)
 {
 	if (!_tuple.isInlineArray() && _tuple.components().size() == 1)
 		m_values[&_tuple] = evaluate(*_tuple.components().front());
+}
+
+void ConstantEvaluator::endVisit(FunctionCall const& _functionCall)
+{
+	using util::keccak256;
+	using util::h256;
+
+	auto const* builtinFunction = dynamic_cast<MagicVariableDeclaration const*>(ASTNode::referencedDeclaration(_functionCall.expression()));
+	if (!builtinFunction)
+		return;
+
+	auto const* functionType = builtinFunction->functionType(true);
+	solAssert(functionType);
+	switch (functionType->kind())
+	{
+		case FunctionType::Kind::ERC7201:
+		{
+			solAssert(_functionCall.arguments().size() == 1);
+			auto const* argument = dynamic_cast<Literal const*>(_functionCall.arguments()[0].get());
+			solAssert(argument);
+			ASTString argStringLiteral = argument->valueWithoutUnderscores();
+			auto value =
+				u256(keccak256(h256(u256(keccak256(argStringLiteral)) - 1))) &
+				u256(~0xff)
+			;
+			solAssert(functionType->returnParameterTypes().size() == 1);
+			m_values[&_functionCall] = TypedRational{functionType->returnParameterTypes()[0], rational{value}};
+			break;
+		}
+		default:
+			break;
+	}
 }

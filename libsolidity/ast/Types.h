@@ -1297,6 +1297,7 @@ public:
 		ABIDecode,
 		GasLeft, ///< gasleft()
 		MetaType, ///< type(...)
+		ERC7201, ///< erc7201(...)
 		/// Refers to a function declaration without calling context
 		/// (i.e. when accessed directly via the name of the containing contract).
 		/// Cannot be called.

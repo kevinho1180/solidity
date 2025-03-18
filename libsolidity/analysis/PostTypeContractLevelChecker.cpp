@@ -91,7 +91,6 @@ void PostTypeContractLevelChecker::checkStorageLayoutSpecifier(ContractDefinitio
 
 	if (!*baseSlotExpression.annotation().isPure)
 	{
-		// TODO: introduce and handle erc7201 as a builtin function
 		m_errorReporter.typeError(
 			1139_error,
 			baseSlotExpression.location(),

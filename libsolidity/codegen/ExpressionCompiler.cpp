@@ -1521,6 +1521,9 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 		case FunctionType::Kind::MetaType:
 			// No code to generate.
 			break;
+		case FunctionType::Kind::ERC7201:
+			solUnimplementedAssert(false, "Codegen does not support erc7201 builtin yet.");
+			break;
 		}
 	}
 	return false;

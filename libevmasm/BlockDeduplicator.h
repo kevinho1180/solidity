@@ -24,9 +24,10 @@
 
 #pragma once
 
+#include <libevmasm/SubAssemblyID.h>
+
 #include <libsolutil/Common.h>
 #include <libsolutil/Numeric.h>
-
 
 #include <cstddef>
 #include <vector>
@@ -59,7 +60,7 @@ public:
 	static bool applyTagReplacement(
 		AssemblyItems& _items,
 		std::map<u256, u256> const& _replacements,
-		size_t _subID = size_t(-1)
+		SubAssemblyID _subID = {}
 	);
 
 private:

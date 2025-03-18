@@ -292,10 +292,10 @@ std::vector<std::optional<BuiltinFunctionForEVM>> createBuiltins(langutil::EVMVe
 				_assembly.appendAssemblySize();
 			else
 			{
-			std::vector<size_t> subIdPath =
+			std::vector<AbstractAssembly::SubID> subIdPath =
 					_context.subIDs.count(dataName.str()) == 0 ?
 						_context.currentObject->pathToSubObject(dataName.str()) :
-						std::vector<size_t>{_context.subIDs.at(dataName.str())};
+						std::vector{_context.subIDs.at(dataName.str())};
 				yulAssert(!subIdPath.empty(), "Could not find assembly object <" + dataName.str() + ">.");
 				_assembly.appendDataSize(subIdPath);
 			}
@@ -313,10 +313,10 @@ std::vector<std::optional<BuiltinFunctionForEVM>> createBuiltins(langutil::EVMVe
 				_assembly.appendConstant(0);
 			else
 			{
-			std::vector<size_t> subIdPath =
+			std::vector<AbstractAssembly::SubID> subIdPath =
 					_context.subIDs.count(dataName.str()) == 0 ?
 						_context.currentObject->pathToSubObject(dataName.str()) :
-						std::vector<size_t>{_context.subIDs.at(dataName.str())};
+						std::vector{_context.subIDs.at(dataName.str())};
 				yulAssert(!subIdPath.empty(), "Could not find assembly object <" + dataName.str() + ">.");
 				_assembly.appendDataOffset(subIdPath);
 			}
@@ -422,8 +422,8 @@ std::vector<std::optional<BuiltinFunctionForEVM>> createBuiltins(langutil::EVMVe
 					yulAssert(!util::contains(formattedLiteral, '.'));
 					auto const* containerID = valueOrNullptr(context.subIDs, formattedLiteral);
 					yulAssert(containerID != nullptr);
-					yulAssert(*containerID <= std::numeric_limits<AbstractAssembly::ContainerID>::max());
-					_assembly.appendEOFCreate(static_cast<AbstractAssembly::ContainerID>(*containerID));
+					yulAssert(containerID->value <= std::numeric_limits<AbstractAssembly::ContainerID>::max());
+					_assembly.appendEOFCreate(static_cast<AbstractAssembly::ContainerID>(containerID->value));
 				}
 				));
 
@@ -446,8 +446,8 @@ std::vector<std::optional<BuiltinFunctionForEVM>> createBuiltins(langutil::EVMVe
 					yulAssert(!util::contains(formattedLiteral, '.'));
 					auto const* containerID = valueOrNullptr(context.subIDs, formattedLiteral);
 					yulAssert(containerID != nullptr);
-					yulAssert(*containerID <= std::numeric_limits<AbstractAssembly::ContainerID>::max());
-					_assembly.appendReturnContract(static_cast<AbstractAssembly::ContainerID>(*containerID));
+					yulAssert(containerID->value <= std::numeric_limits<AbstractAssembly::ContainerID>::max());
+					_assembly.appendReturnContract(static_cast<AbstractAssembly::ContainerID>(containerID->value));
 				}
 			));
 		}

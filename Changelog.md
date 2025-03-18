@@ -7,6 +7,7 @@ Compiler Features:
 
 
 Bugfixes:
+* Commandline Interface: Fix possible inconsistency in subassembly IDs between target architectures in `--asm-json` output.
 * SMTChecker: Fix incorrect analysis when only a subset of contracts is selected with `--model-checker-contracts`.
 
 

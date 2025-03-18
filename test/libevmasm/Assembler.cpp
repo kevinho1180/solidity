@@ -109,11 +109,11 @@ BOOST_AUTO_TEST_CASE(all_assembly_items, *boost::unit_test::precondition(nonEOF(
 	// PushSubSize
 	auto sub = _assembly.appendSubroutine(_subAsmPtr);
 	// PushSub
-	_assembly.pushSubroutineOffset(static_cast<size_t>(sub.data()));
+	_assembly.pushSubroutineOffset(SubAssemblyID(sub.data()));
 	// PushSubSize
 	auto verbatim_sub = _assembly.appendSubroutine(_verbatimAsmPtr);
 	// PushSub
-	_assembly.pushSubroutineOffset(static_cast<size_t>(verbatim_sub.data()));
+	_assembly.pushSubroutineOffset(SubAssemblyID(verbatim_sub.data()));
 	// PushDeployTimeAddress
 	_assembly.append(PushDeployTimeAddress);
 	// AssignImmutable.
@@ -332,7 +332,7 @@ BOOST_AUTO_TEST_CASE(immutable, *boost::unit_test::precondition(nonEOF()))
 	_assembly.appendImmutableAssignment("someOtherImmutable");
 
 	auto sub = _assembly.appendSubroutine(_subAsmPtr);
-	_assembly.pushSubroutineOffset(static_cast<size_t>(sub.data()));
+	_assembly.pushSubroutineOffset(SubAssemblyID(sub.data()));
 
 	checkCompilation(_assembly);
 
@@ -418,11 +418,11 @@ BOOST_AUTO_TEST_CASE(subobject_encode_decode)
 	assembly.appendSubroutine(subAsmPtr);
 	subAsmPtr->appendSubroutine(subSubAsmPtr);
 
-	BOOST_CHECK(assembly.encodeSubPath({0}) == 0);
-	BOOST_REQUIRE_THROW(assembly.encodeSubPath({1}), solidity::evmasm::AssemblyException);
-	BOOST_REQUIRE_THROW(assembly.decodeSubPath(1), solidity::evmasm::AssemblyException);
+	BOOST_CHECK(assembly.encodeSubPath({SubAssemblyID{0}}).value == 0);
+	BOOST_REQUIRE_THROW(assembly.encodeSubPath({SubAssemblyID{1}}), solidity::langutil::InternalCompilerError);
+	BOOST_REQUIRE_THROW(assembly.decodeSubPath(SubAssemblyID{1}), solidity::evmasm::AssemblyException);
 
-	std::vector<size_t> subPath{0, 0};
+	std::vector<SubAssemblyID> subPath{{0}, {0}};
 	BOOST_CHECK(assembly.decodeSubPath(assembly.encodeSubPath(subPath)) == subPath);
 }
 

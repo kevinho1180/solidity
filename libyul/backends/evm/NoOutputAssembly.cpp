@@ -175,7 +175,7 @@ void NoOutputAssembly::appendDataSize(std::vector<AbstractAssembly::SubID> const
 
 AbstractAssembly::SubID NoOutputAssembly::appendData(bytes const&)
 {
-	return 1;
+	return {1};
 }
 
 

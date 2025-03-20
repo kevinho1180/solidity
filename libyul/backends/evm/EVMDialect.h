@@ -113,6 +113,8 @@ public:
 	static size_t constexpr verbatimMaxInputSlots = 100;
 	static size_t constexpr verbatimMaxOutputSlots = 100;
 
+	std::set<std::string_view> builtinFunctionNames() const;
+
 protected:
 	static bool constexpr isVerbatimHandle(BuiltinHandle const& _handle) { return _handle.id < verbatimIDOffset; }
 	static BuiltinFunctionForEVM createVerbatimFunctionFromHandle(BuiltinHandle const& _handle);

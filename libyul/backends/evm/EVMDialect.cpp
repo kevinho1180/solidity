@@ -32,6 +32,7 @@
 
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/view/enumerate.hpp>
+#include <range/v3/view/map.hpp>
 
 #include <regex>
 #include <utility>
@@ -614,6 +615,11 @@ SideEffects EVMDialect::sideEffectsOfInstruction(evmasm::Instruction _instructio
 		translate(evmasm::SemanticInformation::memory(_instruction)),
 		translate(evmasm::SemanticInformation::transientStorage(_instruction)),
 	};
+}
+
+std::set<std::string_view> EVMDialect::builtinFunctionNames() const
+{
+	return ranges::views::keys(m_builtinFunctionsByName) | ranges::to<std::set>;
 }
 
 BuiltinFunctionForEVM EVMDialect::createVerbatimFunctionFromHandle(BuiltinHandle const& _handle)

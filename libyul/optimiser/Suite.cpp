@@ -57,7 +57,6 @@
 #include <libyul/optimiser/SyntacticalEquality.h>
 #include <libyul/optimiser/UnusedAssignEliminator.h>
 #include <libyul/optimiser/UnusedStoreEliminator.h>
-#include <libyul/optimiser/VarNameCleaner.h>
 #include <libyul/optimiser/LoadResolver.h>
 #include <libyul/optimiser/LoopInvariantCodeMotion.h>
 #include <libyul/optimiser/Metrics.h>
@@ -260,7 +259,6 @@ std::map<std::string, std::unique_ptr<OptimiserStep>> const& OptimiserSuite::all
 			UnusedPruner,
 			VarDeclInitializer
 		>();
-	// Does not include VarNameCleaner because it destroys the property of unique names.
 	// Does not include NameSimplifier.
 	return instance;
 }

@@ -35,7 +35,6 @@
 #include <libyul/optimiser/Disambiguator.h>
 #include <libyul/optimiser/OptimiserStep.h>
 #include <libyul/optimiser/StackCompressor.h>
-#include <libyul/optimiser/VarNameCleaner.h>
 #include <libyul/optimiser/Suite.h>
 
 #include <libyul/backends/evm/EVMDialect.h>
@@ -202,7 +201,6 @@ public:
 			std::map<char, std::string> const& extraOptions = {
 				// QUIT starts with a non-letter character on purpose to get it to show up on top of the list
 				{'#', ">>> QUIT <<<"},
-				{',', "VarNameCleaner"},
 				{';', "StackCompressor"}
 			};
 
@@ -219,11 +217,6 @@ public:
 					case 4:
 					case '#':
 						return;
-					case ',':
-						VarNameCleaner::run(m_context, *m_astRoot);
-						// VarNameCleaner destroys the unique names guarantee of the disambiguator.
-						disambiguated = false;
-						break;
 					case ';':
 					{
 						Object obj;

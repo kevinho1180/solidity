@@ -363,7 +363,9 @@ bool BMC::visit(WhileStatement const& _node)
 		{
 			//after loop iterations are done, we check the loop condition last final time
 			auto indices = copyVariableIndices();
+			m_loopCheckpoints.emplace();
 			_node.condition().accept(*this);
+			m_loopCheckpoints.pop();
 			loopCondition = expr(_node.condition());
 			// assert that the loop is complete
 			m_context.addAssertion(!loopCondition || broke || !loopConditionOnPreviousIterations);
@@ -391,13 +393,13 @@ bool BMC::visit(ForStatement const& _node)
 	for (unsigned int i = 0; i < bmcLoopIterations; ++i)
 	{
 		auto indicesBefore = copyVariableIndices();
+		m_loopCheckpoints.emplace();
 		if (_node.condition())
 		{
 			_node.condition()->accept(*this);
 			// values in loop condition might change during loop iteration
 			forCondition = expr(*_node.condition());
 		}
-		m_loopCheckpoints.emplace();
 		auto indicesAfterCondition = copyVariableIndices();
 
 		pushPathCondition(forCondition);
@@ -443,8 +445,10 @@ bool BMC::visit(ForStatement const& _node)
 		auto indices = copyVariableIndices();
 		if (_node.condition())
 		{
+			m_loopCheckpoints.emplace();
 			_node.condition()->accept(*this);
 			forCondition = expr(*_node.condition());
+			m_loopCheckpoints.pop();
 		}
 		// assert that the loop is complete
 		m_context.addAssertion(!forCondition || broke || !forConditionOnPreviousIterations);
@@ -932,9 +936,9 @@ void BMC::checkVerificationTarget(BMCVerificationTarget& _target)
 			checkAssert(_target);
 			break;
 		case VerificationTargetType::ConstantCondition:
-			solAssert(false, "Checks for constant condition are handled separately");
+			smtAssert(false, "Checks for constant condition are handled separately");
 		default:
-			solAssert(false, "");
+			smtAssert(false);
 	}
 }
 

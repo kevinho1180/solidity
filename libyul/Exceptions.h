@@ -21,10 +21,10 @@
 
 #pragma once
 
+#include <libyul/ASTForward.h>
+
 #include <libsolutil/Exceptions.h>
 #include <libsolutil/Assertions.h>
-
-#include <libyul/YulName.h>
 
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/facilities/empty.hpp>

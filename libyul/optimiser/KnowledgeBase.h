@@ -22,8 +22,8 @@
 #pragma once
 
 #include <libyul/ASTForward.h>
+#include <libyul/ASTLabelRegistry.h>
 #include <libyul/Dialect.h>
-#include <libyul/YulName.h>
 
 #include <libsolutil/Common.h>
 #include <libsolutil/Numeric.h>

@@ -21,6 +21,7 @@
 #pragma once
 
 #include <libyul/ASTForward.h>
+#include <libyul/ASTLabelRegistry.h>
 
 #include <libyul/optimiser/ASTCopier.h>
 #include <libyul/optimiser/ASTWalker.h>

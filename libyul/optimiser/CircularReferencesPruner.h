@@ -27,7 +27,6 @@
 #include <libyul/optimiser/ASTWalker.h>
 #include <libyul/optimiser/CallGraphGenerator.h>
 #include <libyul/optimiser/OptimiserStep.h>
-#include <libyul/YulName.h>
 
 namespace solidity::yul
 {

@@ -23,7 +23,6 @@
 #include <libyul/optimiser/ASTWalker.h>
 #include <libyul/optimiser/OptimiserStep.h>
 #include <libyul/ASTForward.h>
-#include <libyul/YulName.h>
 
 #include <liblangutil/SourceLocation.h>
 #include <libsolutil/Common.h>

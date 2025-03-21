@@ -21,8 +21,6 @@
 #include <libyul/optimiser/OptimiserStep.h>
 #include <libyul/optimiser/LabelIDDispenser.h>
 
-#include <libyul/YulName.h>
-
 #include <set>
 #include <memory>
 

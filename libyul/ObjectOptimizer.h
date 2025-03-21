@@ -19,6 +19,7 @@
 #pragma once
 
 #include <libyul/ASTForward.h>
+#include <libyul/ASTLabelRegistry.h>
 #include <libyul/Object.h>
 
 #include <liblangutil/EVMVersion.h>

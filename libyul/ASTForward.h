@@ -30,6 +30,7 @@ namespace solidity::yul
 
 using YulName = std::size_t;
 
+class ASTLabelRegistry;
 enum class LiteralKind;
 class LiteralValue;
 struct Literal;

@@ -307,6 +307,9 @@ public:
 	/// does not exist.
 	ContractDefinition const& contractDefinition(std::string const& _contractName) const;
 
+	/// @returns a list of parsed contracts per source unit with the supplied name.
+	std::vector<ContractDefinition const*> contractDefinitions(std::string const& _sourceName) const;
+
 	/// @returns a list of unhandled queries to the SMT solver (has to be supplied in a second run
 	/// by calling @a addSMTLib2Response).
 	std::vector<std::string> const& unhandledSMTLib2Queries() const { return m_unhandledSMTLib2Queries; }

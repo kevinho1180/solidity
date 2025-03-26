@@ -1256,6 +1256,18 @@ ContractDefinition const& CompilerStack::contractDefinition(std::string const& _
 	return *contract(_contractName).contract;
 }
 
+std::vector<ContractDefinition const*> CompilerStack::contractDefinitions(
+	std::string const& _sourceName
+) const
+{
+	std::vector<ContractDefinition const*> contracts;
+	if (auto source = m_sources.find(_sourceName); source != m_sources.end())
+		for (auto const* contract: ASTNode::filteredNodes<ContractDefinition>(source->second.ast->nodes()))
+			contracts.emplace_back(contract);
+
+	return contracts;
+}
+
 size_t CompilerStack::functionEntryPoint(
 	std::string const& _contractName,
 	FunctionDefinition const& _function

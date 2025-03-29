@@ -18,12 +18,9 @@
 
 #include <libsolidity/formal/VariableUsage.h>
 
-#include <libsolidity/formal/BMC.h>
 #include <libsolidity/formal/SMTEncoder.h>
 
-#include <range/v3/view.hpp>
-
-#include <algorithm>
+#include <range/v3/view/reverse.hpp>
 
 using namespace solidity;
 using namespace solidity::util;

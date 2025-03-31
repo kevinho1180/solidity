@@ -268,7 +268,6 @@ SSACFGEVMCodeTransform::SSACFGEVMCodeTransform
 	m_assembly(_assembly),
 	m_builtinContext(_builtinContext),
 	m_cfg(_cfg),
-	m_liveness(_liveness),
 	m_stackLayout(SSACFGStackLayoutGenerator::generate(_liveness)),
 	m_functionLabels(std::move(_functionLabels)),
 	m_generatedBlocks(_cfg.numBlocks(), false)

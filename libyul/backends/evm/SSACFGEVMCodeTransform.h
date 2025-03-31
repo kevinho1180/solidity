@@ -89,7 +89,6 @@ private:
 	AbstractAssembly& m_assembly;
 	BuiltinContext& m_builtinContext;
 	SSACFG const& m_cfg;
-	SSACFGLiveness const& m_liveness;
 	SSACFGStackLayout m_stackLayout;
 	std::vector<StackTooDeepError> m_stackErrors;
 	FunctionLabels const m_functionLabels;

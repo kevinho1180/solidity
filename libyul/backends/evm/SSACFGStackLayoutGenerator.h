@@ -52,6 +52,7 @@ private:
 	{
 	public:
 		explicit RevertPaths(SSACFG const& _cfg, ForwardSSACFGTopologicalSort const& _topologicalSort);
+		/// Algorithm 1 of https://arxiv.org/pdf/2108.07346
 		bool blockIsOnRevertPath(SSACFG::BlockId const& _blockId) const;
 	private:
 		std::vector<uint8_t> m_blockIsOnRevertPath;

@@ -28,9 +28,92 @@
 #include <range/v3/view/reverse.hpp>
 
 #include <range/v3/to_container.hpp>
+#include <range/v3/view/concat.hpp>
 #include <range/v3/view/drop.hpp>
 
 using namespace solidity::yul;
+
+static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
+static_assert(SSACFGStackShuffler<DanielShuffler<SSACFGStackLayout::Stack>>, "Daniel shuffler conforms to SSACFGStackShuffler concept.");
+
+namespace
+{
+
+/// Detect bridges according to Algorithm 1 of https://arxiv.org/pdf/2108.07346.pdf
+class SSACFGBridgeFinder
+{
+public:
+	explicit SSACFGBridgeFinder(SSACFG const& _cfg):
+		m_cfg(_cfg),
+		m_bridgeVertex(_cfg.numBlocks()),
+		m_visited(_cfg.numBlocks()),
+		m_disc(_cfg.numBlocks()),
+		m_low(_cfg.numBlocks()),
+		m_parent(_cfg.numBlocks())
+	{
+		size_t time = 0;
+		dfs(time, _cfg.entry);
+	}
+
+	bool bridgeVertex(SSACFG::BlockId const& _blockId) const
+	{
+		return m_bridgeVertex[_blockId.value];
+	}
+
+private:
+	void dfs(size_t& _time, SSACFG::BlockId const& _vertex)
+	{
+		m_visited[_vertex.value] = true;
+		m_disc[_vertex.value] = _time;
+		m_low[_vertex.value] = _time;
+		++_time;
+
+		auto const& currentBlock = m_cfg.block(_vertex);
+		std::vector<SSACFG::BlockId> adjacentExitVertices;
+		currentBlock.forEachExit([&](SSACFG::BlockId const& _exit)
+		{
+			adjacentExitVertices.emplace_back(_exit);
+		});
+
+		for (SSACFG::BlockId const neighbor: ranges::views::concat(adjacentExitVertices, currentBlock.entries))
+		{
+			if (!m_visited[neighbor.value])
+			{
+				m_parent[neighbor.value] = _vertex;
+				dfs(_time, neighbor);
+				m_low[_vertex.value] = std::min(m_low[_vertex.value], m_low[neighbor.value]);
+				if (m_low[neighbor.value] > m_disc[_vertex.value])
+				{
+					// vertex <-> neighbor is a bridge in the undirected graph
+					bool const edgeNeighborToVertex = currentBlock.entries.contains(neighbor);
+					bool const edgeVertexToNeighbor = m_cfg.block(neighbor).entries.contains(_vertex);
+
+					// Since we are not really undirected, check if we don't have a cycle (u -> v and v -> u) and see,
+					// which edge really exists here.
+					// Then record the targeted vertex as bridge vertex.
+					if (edgeVertexToNeighbor && !edgeNeighborToVertex)
+						// bridge vertex -> neighbor
+						m_bridgeVertex[neighbor.value] = true;
+					else if (edgeNeighborToVertex && !edgeVertexToNeighbor)
+						// bridge neighbor -> vertex
+						m_bridgeVertex[_vertex.value] = true;
+				}
+			}
+			else if (neighbor != m_parent[_vertex.value])
+				m_low[_vertex.value] = std::min(m_low[_vertex.value], m_disc[neighbor.value]);
+		}
+	}
+
+	SSACFG const& m_cfg;
+	std::vector<uint8_t> m_bridgeVertex;
+	std::vector<uint8_t> m_visited;
+	std::vector<size_t> m_disc;
+	std::vector<size_t> m_low;
+	std::vector<SSACFG::BlockId> m_parent;
+};
+
+}
+
 
 ControlFlowLayout SSACFGStackLayoutGenerator::generate(ControlFlowLiveness const& _controlFlowLiveness)
 {
@@ -82,7 +165,8 @@ SSACFGStackLayoutGenerator::~SSACFGStackLayoutGenerator() = default;
 
 bool SSACFGStackLayoutGenerator::requiresCleanStack(SSACFG::BlockId const _block) const
 {
-	return !m_revertPaths.blockIsOnRevertPath(_block);
+	auto const notOnRevertPath = !m_revertPaths.blockIsOnRevertPath(_block);
+	return notOnRevertPath;
 }
 
 SSACFGStackLayout const& SSACFGStackLayoutGenerator::run()
@@ -131,8 +215,6 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	requiredStackTop += operation.inputs;
 
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
-	static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
-	static_assert(SSACFGStackShuffler<DanielShuffler<SSACFGStackLayout::Stack>>, "Daniel shuffler conforms to SSACFGStackShuffler concept.");
 	// auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
 	// auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
 	auto stack = [&]
@@ -283,30 +365,29 @@ void SSACFGStackLayoutGenerator::markBlockHasDefinedStackIn(SSACFG::BlockId cons
 }
 
 SSACFGStackLayoutGenerator::RevertPaths::RevertPaths(SSACFG const& _cfg, ForwardSSACFGTopologicalSort const& _topologicalSort):
-	m_blockIsOnRevertPath(_cfg.numBlocks(), _cfg.function ? true : false)
+	m_blockIsOnRevertPath(_cfg.numBlocks(), false)
 {
-	if (!_cfg.function)
-		return;
+	SSACFGBridgeFinder const bridgeFinder(_cfg);
 
-	std::vector<SSACFG::BlockId> returnBlocks;
+	std::vector<SSACFG::BlockId> terminateBlocks;
 	for (auto const blockIndex: _topologicalSort.preOrder())
-		if (std::holds_alternative<SSACFG::BasicBlock::FunctionReturn>(_cfg.block(SSACFG::BlockId{blockIndex}).exit))
-			returnBlocks.emplace_back(SSACFG::BlockId{blockIndex});
+		if (std::holds_alternative<SSACFG::BasicBlock::Terminated>(_cfg.block(SSACFG::BlockId{blockIndex}).exit))
+			terminateBlocks.emplace_back(SSACFG::BlockId{blockIndex});
 
-	for (auto const& returnBlock: returnBlocks)
+	for (auto const& terminateBlock: terminateBlocks)
 	{
 		std::vector<uint8_t> visited(_cfg.numBlocks(), false);
-		std::vector toVisit{returnBlock};
+		std::vector toVisit{terminateBlock};
 		while (!toVisit.empty())
 		{
 			auto const blockId = toVisit.back();
 			auto const& block = _cfg.block(blockId);
 			toVisit.pop_back();
-			m_blockIsOnRevertPath[blockId.value] = false;
+			m_blockIsOnRevertPath[blockId.value] = true;
 			visited[blockId.value] = true;
-			for (auto const& [entryIdValue]: block.entries)
-				if (!visited[entryIdValue])
-					toVisit.emplace_back(entryIdValue);
+			for (auto const& entry: block.entries)
+				if (!visited[entry.value] && bridgeFinder.bridgeVertex(entry))
+					toVisit.emplace_back(entry);
 		}
 	}
 }

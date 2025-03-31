@@ -33,8 +33,8 @@
 
 using namespace solidity::yul;
 
-static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayout::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
-static_assert(SSACFGStackShuffler<DanielShuffler<SSACFGStackLayout::Stack>>, "Daniel shuffler conforms to SSACFGStackShuffler concept.");
+static_assert(SSACFGStackShuffler<BubbleShuffler<Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
+static_assert(SSACFGStackShuffler<DanielShuffler<Stack>>, "Daniel shuffler conforms to SSACFGStackShuffler concept.");
 
 namespace
 {
@@ -151,7 +151,7 @@ SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
 	else
 	{
 		// for function CFG: arguments are at the top of the stack
-		m_stackLayout[m_cfg.entry].stackIn = SSACFGStackLayout::Stack(
+		m_stackLayout[m_cfg.entry].stackIn = Stack(
 			m_cfg.arguments |
 			ranges::views::reverse |
 			ranges::views::transform([](auto&& _variableAndValueId) -> Slot { return std::get<1>(_variableAndValueId); }) |
@@ -182,7 +182,7 @@ void SSACFGStackLayoutGenerator::visitBlock(SSACFG::BlockId const _blockId)
 	yulAssert(!blockIsGenerated(_blockId));
 	yulAssert(blockHasDefinedStackIn(_blockId));
 
-	SSACFGStackLayout::Stack currentStack = m_stackLayout[_blockId].stackIn;
+	Stack currentStack = m_stackLayout[_blockId].stackIn;
 	auto const numOperationsInBlock = m_cfg.block(_blockId).operations.size();
 	m_stackLayout[_blockId].operationIn.resize(numOperationsInBlock);
 	for (size_t operationIndex = 0; operationIndex < numOperationsInBlock; ++operationIndex)
@@ -193,10 +193,10 @@ void SSACFGStackLayoutGenerator::visitBlock(SSACFG::BlockId const _blockId)
 	populateBlockSuccessorStackIn(_blockId);
 }
 
-SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
+Stack SSACFGStackLayoutGenerator::visitOperation(
 	SSACFG::BlockId const _blockId,
 	size_t const _operationIndex,
-	SSACFGStackLayout::Stack const& _inputStack
+	Stack const& _inputStack
 )
 {
 	yulAssert(_operationIndex < m_cfg.block(_blockId).operations.size());
@@ -215,14 +215,14 @@ SSACFGStackLayout::Stack SSACFGStackLayoutGenerator::visitOperation(
 	requiredStackTop += operation.inputs;
 
 	// todo if we don't require a clean stack, we might as well just bring up the args and leave the rest as-is
-	// auto outputStack = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
-	// auto stackOut = BubbleShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
+	// auto outputStack = BubbleShuffler<Stack>::shuffle(_inputStack, requiredStackTop, liveOutWithoutOutputs);
+	// auto stackOut = BubbleShuffler<Stack>::shuffle(_inputStack, requiredStackTop, _inputStack.data);
 	auto stack = [&]
 	{
 		if (requiresCleanStack(_blockId))
-			return DanielShuffler<SSACFGStackLayout::Stack>::shuffle(_inputStack, liveOutWithoutOutputs, requiredStackTop);
+			return DanielShuffler<Stack>::shuffle(_inputStack, liveOutWithoutOutputs, requiredStackTop);
 
-		return DanielShuffler<SSACFGStackLayout::Stack>::shuffle(
+		return DanielShuffler<Stack>::shuffle(
 			_inputStack,
 			{},
 			_inputStack.stackData() + std::vector(liveOutWithoutOutputs.begin(), liveOutWithoutOutputs.end()) + requiredStackTop
@@ -277,13 +277,13 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 	std::set<Slot> const targetLiveInSlots(targetLiveIn.begin(), targetLiveIn.end());
 	if (requiresCleanStack(_jump.target))
 	{
-		// m_stackLayout[_jump.target].stackIn = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(m_stackLayout[_source].stackOut, targetLiveInSlots, {});
-		m_stackLayout[_jump.target].stackIn = BlockStackInShuffler<SSACFGStackLayout::Stack>::shuffle(m_stackLayout[_source].stackOut, targetLiveInSlots);
+		// m_stackLayout[_jump.target].stackIn = DanielShuffler<Stack>::shuffle(m_stackLayout[_source].stackOut, targetLiveInSlots, {});
+		m_stackLayout[_jump.target].stackIn = BlockStackInShuffler<Stack>::shuffle(m_stackLayout[_source].stackOut, targetLiveInSlots);
 		yulAssert(std::set(m_stackLayout[_jump.target].stackIn.begin(), m_stackLayout[_jump.target].stackIn.end()) == targetLiveInSlots);
 	}
 	else
 	{
-		m_stackLayout[_jump.target].stackIn = DanielShuffler<SSACFGStackLayout::Stack>::shuffle(
+		m_stackLayout[_jump.target].stackIn = DanielShuffler<Stack>::shuffle(
 			m_stackLayout[_source].stackOut,
 			{},
 			m_stackLayout[_source].stackOut.stackData() + std::vector(targetLiveInSlots.begin(), targetLiveInSlots.end())
@@ -316,9 +316,9 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		// todo use shuffle algo
 		if (true || (requiresCleanStack(_condJump.nonZero) && requiresCleanStack(_condJump.zero)))
 			// [phi^-1(liveInZero) - liveInNonZero, liveInNonZero]
-			m_stackLayout[_condJump.nonZero].stackIn = SSACFGStackLayout::Stack(remainingZeroLiveInSlots + nonZeroLiveInSlots);
+			m_stackLayout[_condJump.nonZero].stackIn = Stack(remainingZeroLiveInSlots + nonZeroLiveInSlots);
 		else
-			m_stackLayout[_condJump.nonZero].stackIn = SSACFGStackLayout::Stack(
+			m_stackLayout[_condJump.nonZero].stackIn = Stack(
 				m_stackLayout[_source].stackOut.stackData() + remainingZeroLiveInSlots + nonZeroLiveInSlots
 			);
 
@@ -333,10 +333,10 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		std::vector<Slot> const zeroLiveInStackData(zeroLiveIn.begin(), zeroLiveIn.end());
 		// todo use shuffle algo
 		if (true || requiresCleanStack(_condJump.zero))
-			m_stackLayout[_condJump.zero].stackIn = SSACFGStackLayout::Stack(zeroLiveInStackData);
+			m_stackLayout[_condJump.zero].stackIn = Stack(zeroLiveInStackData);
 		else
 		{
-			m_stackLayout[_condJump.zero].stackIn = SSACFGStackLayout::Stack(
+			m_stackLayout[_condJump.zero].stackIn = Stack(
 				m_stackLayout[_source].stackOut.stackData() + zeroLiveInStackData
 			);
 		}

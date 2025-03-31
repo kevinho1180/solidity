@@ -33,8 +33,8 @@
 
 using namespace solidity::yul;
 
-static_assert(SSACFGStackShuffler<BubbleShuffler<Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
-static_assert(SSACFGStackShuffler<DanielShuffler<Stack>>, "Daniel shuffler conforms to SSACFGStackShuffler concept.");
+static_assert(SSACFGStackShuffler<BubbleShuffler<SSACFGStackLayoutGenerator::Stack>>, "Bubble shuffler conforms to SSACFGStackShuffler concept.");
+static_assert(SSACFGStackShuffler<DanielShuffler<SSACFGStackLayoutGenerator::Stack>>, "Daniel shuffler conforms to SSACFGStackShuffler concept.");
 
 namespace
 {
@@ -193,7 +193,7 @@ void SSACFGStackLayoutGenerator::visitBlock(SSACFG::BlockId const _blockId)
 	populateBlockSuccessorStackIn(_blockId);
 }
 
-Stack SSACFGStackLayoutGenerator::visitOperation(
+SSACFGStackLayoutGenerator::Stack SSACFGStackLayoutGenerator::visitOperation(
 	SSACFG::BlockId const _blockId,
 	size_t const _operationIndex,
 	Stack const& _inputStack

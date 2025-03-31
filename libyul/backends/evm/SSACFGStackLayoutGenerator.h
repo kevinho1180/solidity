@@ -45,11 +45,12 @@ private:
 
 class SSACFGStackLayoutGenerator {
 public:
+	using Stack = SSACFGStackLayout::Stack;
+	using Slot = SSACFGStackLayout::Slot;
+
 	static ControlFlowLayout generate(ControlFlowLiveness const& _controlFlowLiveness);
 	static SSACFGStackLayout generate(SSACFGLiveness const& _cfgLiveness);
 private:
-	using Stack = SSACFGStackLayout::Stack;
-	using Slot = SSACFGStackLayout::Slot;
 
 	class RevertPaths
 	{
@@ -68,10 +69,10 @@ private:
 
 	SSACFGStackLayout const& run();
 	void visitBlock(SSACFG::BlockId _blockId);
-	SSACFGStackLayout::Stack visitOperation(
+	Stack visitOperation(
 		SSACFG::BlockId _blockId,
 		size_t _operationIndex,
-		SSACFGStackLayout::Stack const& _inputStack
+		Stack const& _inputStack
 	);
 
 	void populateBlockSuccessorStackIn(SSACFG::BlockId _blockId);

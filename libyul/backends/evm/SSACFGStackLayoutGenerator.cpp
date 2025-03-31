@@ -89,6 +89,11 @@ private:
 					bool const edgeNeighborToVertex = currentBlock.entries.contains(neighbor);
 					bool const edgeVertexToNeighbor = m_cfg.block(neighbor).entries.contains(_vertex);
 
+					// special case: if it's the entry itself, we mark it as bridge vertex (provided correct orientation),
+					// so that functions which do nothing but revert have their whole tree marked as such (sans loops)
+					// todo correct?
+					if (!_parent)
+						m_bridgeVertex[_vertex.value] = edgeVertexToNeighbor;
 					// Since we are not really undirected, check if we don't have a cycle (u -> v and v -> u) and see,
 					// which edge really exists here.
 					// Then record the targeted vertex as bridge vertex.
@@ -314,7 +319,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		std::vector<Slot> const remainingZeroLiveInSlots(remainingZeroLiveIn.begin(), remainingZeroLiveIn.end());
 
 		// todo use shuffle algo
-		if (true || (requiresCleanStack(_condJump.nonZero) && requiresCleanStack(_condJump.zero)))
+		if ((requiresCleanStack(_condJump.nonZero) && requiresCleanStack(_condJump.zero)))
 			// [phi^-1(liveInZero) - liveInNonZero, liveInNonZero]
 			m_stackLayout[_condJump.nonZero].stackIn = Stack(remainingZeroLiveInSlots + nonZeroLiveInSlots);
 		else
@@ -332,7 +337,7 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 
 		std::vector<Slot> const zeroLiveInStackData(zeroLiveIn.begin(), zeroLiveIn.end());
 		// todo use shuffle algo
-		if (true || requiresCleanStack(_condJump.zero))
+		if (requiresCleanStack(_condJump.zero))
 			m_stackLayout[_condJump.zero].stackIn = Stack(zeroLiveInStackData);
 		else
 		{

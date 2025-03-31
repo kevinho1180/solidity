@@ -42,7 +42,7 @@ using namespace solidity::yul;
 namespace
 {
 
-constexpr bool debugOutput = true;
+constexpr bool debugOutput = false;
 
 std::string ssaCfgVarToString(SSACFG const& _cfg, SSACFG::ValueId _var)
 {

@@ -48,11 +48,10 @@ public:
 		m_bridgeVertex(_cfg.numBlocks()),
 		m_visited(_cfg.numBlocks()),
 		m_disc(_cfg.numBlocks()),
-		m_low(_cfg.numBlocks()),
-		m_parent(_cfg.numBlocks())
+		m_low(_cfg.numBlocks())
 	{
 		size_t time = 0;
-		dfs(time, _cfg.entry);
+		dfs(time, _cfg.entry, std::nullopt);
 	}
 
 	bool bridgeVertex(SSACFG::BlockId const& _blockId) const
@@ -61,7 +60,7 @@ public:
 	}
 
 private:
-	void dfs(size_t& _time, SSACFG::BlockId const& _vertex)
+	void dfs(size_t& _time, SSACFG::BlockId const& _vertex, std::optional<SSACFG::BlockId> const& _parent)
 	{
 		m_visited[_vertex.value] = true;
 		m_disc[_vertex.value] = _time;
@@ -77,10 +76,12 @@ private:
 
 		for (SSACFG::BlockId const neighbor: ranges::views::concat(adjacentExitVertices, currentBlock.entries))
 		{
+			if (neighbor == _parent)
+				continue;
+
 			if (!m_visited[neighbor.value])
 			{
-				m_parent[neighbor.value] = _vertex;
-				dfs(_time, neighbor);
+				dfs(_time, neighbor, _vertex);
 				m_low[_vertex.value] = std::min(m_low[_vertex.value], m_low[neighbor.value]);
 				if (m_low[neighbor.value] > m_disc[_vertex.value])
 				{
@@ -99,7 +100,7 @@ private:
 						m_bridgeVertex[_vertex.value] = true;
 				}
 			}
-			else if (neighbor != m_parent[_vertex.value])
+			else
 				m_low[_vertex.value] = std::min(m_low[_vertex.value], m_disc[neighbor.value]);
 		}
 	}
@@ -109,7 +110,6 @@ private:
 	std::vector<uint8_t> m_visited;
 	std::vector<size_t> m_disc;
 	std::vector<size_t> m_low;
-	std::vector<SSACFG::BlockId> m_parent;
 };
 
 }
@@ -371,7 +371,7 @@ SSACFGStackLayoutGenerator::RevertPaths::RevertPaths(SSACFG const& _cfg, Forward
 
 	std::vector<SSACFG::BlockId> terminateBlocks;
 	for (auto const blockIndex: _topologicalSort.preOrder())
-		if (std::holds_alternative<SSACFG::BasicBlock::Terminated>(_cfg.block(SSACFG::BlockId{blockIndex}).exit))
+		if (std::holds_alternative<SSACFG::BasicBlock::Terminated>(_cfg.block(SSACFG::BlockId{blockIndex}).exit) || std::holds_alternative<SSACFG::BasicBlock::MainExit>(_cfg.block(SSACFG::BlockId{blockIndex}).exit))
 			terminateBlocks.emplace_back(SSACFG::BlockId{blockIndex});
 
 	for (auto const& terminateBlock: terminateBlocks)
@@ -383,7 +383,7 @@ SSACFGStackLayoutGenerator::RevertPaths::RevertPaths(SSACFG const& _cfg, Forward
 			auto const blockId = toVisit.back();
 			auto const& block = _cfg.block(blockId);
 			toVisit.pop_back();
-			m_blockIsOnRevertPath[blockId.value] = true;
+			m_blockIsOnRevertPath[blockId.value] = ranges::all_of(block.entries, [&](SSACFG::BlockId const& _entry) { return bridgeFinder.bridgeVertex(_entry); });
 			visited[blockId.value] = true;
 			for (auto const& entry: block.entries)
 				if (!visited[entry.value] && bridgeFinder.bridgeVertex(entry))

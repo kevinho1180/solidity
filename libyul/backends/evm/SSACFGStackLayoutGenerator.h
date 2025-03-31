@@ -48,6 +48,8 @@ public:
 	static ControlFlowLayout generate(ControlFlowLiveness const& _controlFlowLiveness);
 	static SSACFGStackLayout generate(SSACFGLiveness const& _cfgLiveness);
 private:
+	using Slot = SSACFGStackLayout::Slot;
+
 	class RevertPaths
 	{
 	public:

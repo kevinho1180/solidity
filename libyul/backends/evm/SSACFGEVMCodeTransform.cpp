@@ -42,7 +42,7 @@ using namespace solidity::yul;
 namespace
 {
 
-constexpr bool debugOutput = false;
+constexpr bool debugOutput = true;
 
 std::string ssaCfgVarToString(SSACFG const& _cfg, SSACFG::ValueId _var)
 {
@@ -385,6 +385,8 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 			{
 				auto stackIn = m_stackLayout[_conditionalJump.nonZero].stackIn.stackData();
 				stackIn.emplace_back(_conditionalJump.condition);
+				if constexpr (debugOutput)
+					std::cout << "\t\tJUMPI Creating stack for nonZero layout " << stackToStringLoc(m_cfg, m_stack.stackData()) << " -> " << stackToStringLoc(m_cfg, stackIn) << std::endl;
 				shuffleStack(stackIn, SSACFG::Edge{_block, _conditionalJump.nonZero});
 			}
 			// std::cout << "Stack after putting cond on top: "<< stackToStringLoc(m_cfg, m_stack.stackData()) << std::endl;
@@ -398,9 +400,8 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 			}
 			Stack const nonZeroStack = m_stack;
 
-			// std::cout << "Current stack: "<< stackToStringLoc(m_cfg, m_stack.stackData()) << std::endl;
 			if constexpr (debugOutput)
-				std::cout << "\t\tJUMPI Creating stack for zero layout " << stackToStringLoc(m_cfg, m_stackLayout[_conditionalJump.zero].stackIn.stackData()) << std::endl;
+				std::cout << "\t\tJUMPI Creating stack for zero layout " << stackToStringLoc(m_cfg, m_stack.stackData()) << " -> " << stackToStringLoc(m_cfg, m_stackLayout[_conditionalJump.zero].stackIn.stackData()) << std::endl;
 
 			shuffleStack(
 				m_stackLayout[_conditionalJump.zero].stackIn.stackData(),

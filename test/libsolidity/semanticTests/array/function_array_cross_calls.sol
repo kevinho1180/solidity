@@ -42,7 +42,7 @@ contract C {
 }
 // ----
 // test() -> 5, 6, 7
-// gas irOptimized: 86883
+// gas irOptimized: 87198
 // gas irOptimized code: 182600
 // gas legacy: 97551
 // gas legacy code: 342800

@@ -9,7 +9,7 @@ contract Creator {
 }
 // ----
 // constructor(): 1, 2, 3, 4 ->
-// gas irOptimized: 104190
+// gas irOptimized: 104330
 // gas irOptimized code: 21400
 // gas legacy: 115185
 // gas legacy code: 59000

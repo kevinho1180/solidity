@@ -383,8 +383,12 @@ SSACFGStackLayoutGenerator::RevertPaths::RevertPaths(SSACFG const& _cfg, Forward
 			auto const blockId = toVisit.back();
 			auto const& block = _cfg.block(blockId);
 			toVisit.pop_back();
-			m_blockIsOnRevertPath[blockId.value] = ranges::all_of(block.entries, [&](SSACFG::BlockId const& _entry) { return bridgeFinder.bridgeVertex(_entry); });
+			bool const containedInRevertPath = ranges::all_of(block.entries, [&](SSACFG::BlockId const& _entry) { return bridgeFinder.bridgeVertex(_entry); });
+			m_blockIsOnRevertPath[blockId.value] = containedInRevertPath;
 			visited[blockId.value] = true;
+			if (!containedInRevertPath)
+				continue;
+
 			for (auto const& entry: block.entries)
 				if (!visited[entry.value] && bridgeFinder.bridgeVertex(entry))
 					toVisit.emplace_back(entry);

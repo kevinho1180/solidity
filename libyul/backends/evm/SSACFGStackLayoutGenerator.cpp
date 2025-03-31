@@ -168,10 +168,10 @@ SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
 
 SSACFGStackLayoutGenerator::~SSACFGStackLayoutGenerator() = default;
 
-bool SSACFGStackLayoutGenerator::requiresCleanStack(SSACFG::BlockId const _block) const
+bool SSACFGStackLayoutGenerator::requiresCleanStack(SSACFG::BlockId const) const
 {
-	auto const notOnRevertPath = !m_revertPaths.blockIsOnRevertPath(_block);
-	return notOnRevertPath;
+	// auto const notOnRevertPath = !m_revertPaths.blockIsOnRevertPath(_block);
+	return true; //notOnRevertPath;
 }
 
 SSACFGStackLayout const& SSACFGStackLayoutGenerator::run()
@@ -238,7 +238,11 @@ SSACFGStackLayoutGenerator::Stack SSACFGStackLayoutGenerator::visitOperation(
 	for (size_t i = 0; i < requiredStackTop.size(); ++i)
 		stack.pop();
 	for (auto const& val: operation.outputs)
-		stack.push(val);
+		if (operationLiveOut.contains(val))
+			stack.push(val);
+		else
+			// todo everything that is not in live out is JUNK!
+			stack.push(val);
 	return stack;
 }
 

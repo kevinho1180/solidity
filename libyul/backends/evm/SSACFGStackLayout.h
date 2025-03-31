@@ -84,6 +84,11 @@ struct SSACFGFunctionReturnLabel
 	auto operator<=>(SSACFGFunctionReturnLabel const&) const = default;
 };
 
+struct SSACFGJunkSlot
+{
+	auto operator<=>(const SSACFGJunkSlot&) const = default;
+};
+
 class SSACFGStackLayoutStack
 {
 public:
@@ -147,7 +152,11 @@ public:
 			[&](SSACFGFunctionReturnLabel const& _label)
 			{
 				m_data.emplace_back(_label);
-			}
+			}/*,
+			[&](SSACFGJunkSlot const& _junk)
+			{
+				m_data.emplace_back(_junk);
+			}*/
 		}, _slot);
 	}
 

@@ -77,6 +77,7 @@ private:
 
 	void operator()(SSACFG::BlockId _block);
 	void performOperation(SSACFG::Operation const& _operation);
+	void assertLayoutCompatibility(Stack const& _current, Stack const& _desired) const;
 
 	AbstractAssembly::LabelID functionLabel(Scope::Function const& _function) const
 	{

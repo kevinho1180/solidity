@@ -259,7 +259,7 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 		std::cout << "\tGenerating for Block " << _block.value << " with label " << m_blockLabels[_block.value] << std::endl;
 
 	auto const& blockLayout = m_stackLayout[_block];
-	yulAssert(blockLayout.stackIn == m_stack, fmt::format("{} =/= {}", stackToStringLoc(m_cfg, blockLayout.stackIn.stackData()), stackToStringLoc(m_cfg, m_stack.stackData())));
+	assertLayoutCompatibility(m_stack, blockLayout.stackIn);
 	// todo assert on all exits that the stack height is fine
 	yulAssert(static_cast<int>(m_stack.size()) == m_assembly.stackHeight());
 
@@ -439,6 +439,26 @@ void SSACFGEVMCodeTransform::performOperation(SSACFG::Operation const& _operatio
 
 	if constexpr (debugOutput)
 		std::cout << " -> " << m_stack.str(m_cfg) << std::endl;
+}
+void SSACFGEVMCodeTransform::assertLayoutCompatibility(Stack const& _current, Stack const& _desired) const
+{
+	yulAssert(
+		_current.size() == _desired.size(),
+		fmt::format("size mismatch: {} = len({}) =/= len({}) = {}", _current.size(), _current.str(m_cfg), _desired.str(m_cfg), _desired.size())
+	);
+	for (auto&& [index, currentSlot, desiredSlot]: ranges::zip_view(ranges::views::iota(0), _current, _desired))
+		yulAssert(
+			std::holds_alternative<SSACFGJunkSlot>(desiredSlot) || currentSlot == desiredSlot,
+			fmt::format(
+				"stack element mismatch: {} = {}[{}] =/= {}[{}] = {}",
+				_current.slotToString(m_cfg, currentSlot),
+				_current.str(m_cfg),
+				index,
+				_desired.str(m_cfg),
+				index,
+				_desired.slotToString(m_cfg, desiredSlot)
+			)
+		);
 }
 
 void SSACFGEVMCodeTransform::shuffleStack(std::vector<Slot> _target, std::optional<SSACFG::Edge> const& _edge)

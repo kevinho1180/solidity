@@ -168,10 +168,10 @@ SSACFGStackLayoutGenerator::SSACFGStackLayoutGenerator(
 
 SSACFGStackLayoutGenerator::~SSACFGStackLayoutGenerator() = default;
 
-bool SSACFGStackLayoutGenerator::requiresCleanStack(SSACFG::BlockId const) const
+bool SSACFGStackLayoutGenerator::requiresCleanStack(SSACFG::BlockId const _block) const
 {
-	// auto const notOnRevertPath = !m_revertPaths.blockIsOnRevertPath(_block);
-	return true; //notOnRevertPath;
+	auto const notOnRevertPath = !m_revertPaths.blockIsOnRevertPath(_block);
+	return notOnRevertPath;
 }
 
 SSACFGStackLayout const& SSACFGStackLayoutGenerator::run()
@@ -241,8 +241,7 @@ SSACFGStackLayoutGenerator::Stack SSACFGStackLayoutGenerator::visitOperation(
 		if (operationLiveOut.contains(val))
 			stack.push(val);
 		else
-			// todo everything that is not in live out is JUNK!
-			stack.push(val);
+			stack.push(SSACFGJunkSlot{});
 	return stack;
 }
 

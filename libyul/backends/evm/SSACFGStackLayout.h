@@ -197,7 +197,6 @@ public:
 			fmt::join(m_data | ranges::views::transform([&](auto const& _slot) { return slotToString(_cfg, _slot); }), ", ")
 		);
 	}
-private:
 	static std::string slotToString(SSACFG const& _cfg, Slot const& _slot)
 	{
 		return std::visit(util::GenericVisitor{
@@ -219,6 +218,7 @@ private:
 			}
 		}, _slot);
 	}
+private:
 	std::vector<Slot> m_data;
 };
 

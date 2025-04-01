@@ -53,7 +53,7 @@ public:
 		stream << printer.m_result.str();
 		return stream;
 	}
-private:
+
 	static std::string varToString(SSACFG const& _cfg, SSACFG::ValueId _var) {
 		if (_var.value == std::numeric_limits<size_t>::max())
 			return "INVALID";
@@ -77,6 +77,7 @@ private:
 		);
 	}
 
+private:
 	static std::string escape(std::string_view const str)
 	{
 		using namespace std::literals;
@@ -301,4 +302,9 @@ std::string SSACFG::toDot(
 	if (_includeDiGraphDefinition)
 		output << "}\n";
 	return output.str();
+}
+
+std::string SSACFG::valueDescription(ValueId const& _valueId) const
+{
+	return SSACFGPrinter::varToString(*this, _valueId);
 }

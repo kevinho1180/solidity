@@ -27,6 +27,8 @@
 
 #include <range/v3/view/reverse.hpp>
 
+#include <fmt/ranges.h>
+
 #include <map>
 #include <variant>
 #include <vector>
@@ -92,7 +94,7 @@ struct SSACFGJunkSlot
 class SSACFGStackLayoutStack
 {
 public:
-	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID, SSACFGFunctionReturnLabel>;
+	using Slot = std::variant<SSACFG::ValueId, AbstractAssembly::LabelID, SSACFGFunctionReturnLabel, SSACFGJunkSlot>;
 
 	SSACFGStackLayoutStack() = default;
 	explicit SSACFGStackLayoutStack(std::vector<Slot> _stack): m_data(std::move(_stack)) {}
@@ -152,11 +154,11 @@ public:
 			[&](SSACFGFunctionReturnLabel const& _label)
 			{
 				m_data.emplace_back(_label);
-			}/*,
+			},
 			[&](SSACFGJunkSlot const& _junk)
 			{
 				m_data.emplace_back(_junk);
-			}*/
+			}
 		}, _slot);
 	}
 
@@ -187,7 +189,36 @@ public:
 	auto operator<=>(SSACFGStackLayoutStack const&) const = default;
 
 	std::vector<Slot> const& stackData() const { return m_data; }
+
+	std::string str(SSACFG const& _cfg) const
+	{
+		return format(
+			"[{}]",
+			fmt::join(m_data | ranges::views::transform([&](auto const& _slot) { return slotToString(_cfg, _slot); }), ", ")
+		);
+	}
 private:
+	static std::string slotToString(SSACFG const& _cfg, Slot const& _slot)
+	{
+		return std::visit(util::GenericVisitor{
+			[&](SSACFG::ValueId const _value) {
+				return _cfg.valueDescription(_value);
+			},
+			[](AbstractAssembly::LabelID const _label) {
+				return "LABEL[" + std::to_string(_label) + "]";
+			},
+			[](SSACFGFunctionReturnLabel const& _functionReturnLabel)
+			{
+				yulAssert(_functionReturnLabel.functionCall, "Function return label was null.");
+				yulAssert(std::holds_alternative<Identifier>(_functionReturnLabel.functionCall->functionName));
+				return fmt::format("ReturnLabel[{}]", std::get<Identifier>(_functionReturnLabel.functionCall->functionName).name.str());
+			},
+			[](SSACFGJunkSlot const&) -> std::string
+			{
+				return "JUNK";
+			}
+		}, _slot);
+	}
 	std::vector<Slot> m_data;
 };
 

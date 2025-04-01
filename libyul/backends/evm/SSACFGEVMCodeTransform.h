@@ -73,7 +73,6 @@ private:
 		SSACFGLiveness const& _liveness
 	);
 
-	bool requiresCleanStack(SSACFG::BlockId _block) const;
 	void transformFunction(Scope::Function const& _function);
 
 	void operator()(SSACFG::BlockId _block);

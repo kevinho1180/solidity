@@ -27,6 +27,7 @@
 #include <range/v3/algorithm/none_of.hpp>
 #include <range/v3/view/reverse.hpp>
 
+#include <range/v3/algorithm/equal.hpp>
 #include <range/v3/to_container.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/drop.hpp>
@@ -38,6 +39,13 @@ static_assert(SSACFGStackShuffler<DanielShuffler<SSACFGStackLayoutGenerator::Sta
 
 namespace
 {
+
+bool constexpr debugOutput = true;
+
+std::vector<SSACFGStackLayoutGenerator::Slot> pileOfJunk(size_t const _size)
+{
+	return std::vector<SSACFGStackLayoutGenerator::Slot>(_size, SSACFGJunkSlot{});
+}
 
 /// Detect bridges according to Algorithm 1 of https://arxiv.org/pdf/2108.07346.pdf
 class SSACFGBridgeFinder
@@ -174,6 +182,38 @@ bool SSACFGStackLayoutGenerator::requiresCleanStack(SSACFG::BlockId const _block
 	return notOnRevertPath;
 }
 
+std::vector<SSACFGStackLayoutGenerator::Slot>
+SSACFGStackLayoutGenerator::prepareStackTail(
+	std::vector<Slot> const& _current,
+	std::vector<Slot> const& _newTop,
+	std::set<SSACFG::ValueId> const& _liveness
+) const
+{
+	auto tail = _current;
+	// keep the top elements if they are the same
+	{
+		for (size_t n = std::min(tail.size(), _newTop.size()); n > 0; --n)
+		{
+			std::span const topSpan(_newTop.begin(), n);
+			std::span const tailSpan(tail.end() - static_cast<std::ptrdiff_t>(n), n);
+			if (ranges::equal(topSpan, tailSpan))
+			{
+				tail = std::vector(tail.begin(), tail.end() - static_cast<std::ptrdiff_t>(n));
+				break;
+			}
+		}
+	}
+	// junk everything that isn't live-out
+	tail = tail |
+		ranges::views::transform([&](Slot const& _slot) -> Slot {
+			if (std::holds_alternative<SSACFG::ValueId>(_slot) && !_liveness.contains(std::get<SSACFG::ValueId>(_slot)))
+				return SSACFGJunkSlot{};
+			return _slot;
+		}) |
+		ranges::to<std::vector>;
+	return tail;
+}
+
 SSACFGStackLayout const& SSACFGStackLayoutGenerator::run()
 {
 	for (auto const& blockIdValue: m_liveness.topologicalSort().preOrder())
@@ -227,10 +267,29 @@ SSACFGStackLayoutGenerator::Stack SSACFGStackLayoutGenerator::visitOperation(
 		if (requiresCleanStack(_blockId))
 			return DanielShuffler<Stack>::shuffle(_inputStack, liveOutWithoutOutputs, requiredStackTop);
 
+		auto const top = std::vector(liveOutWithoutOutputs.begin(), liveOutWithoutOutputs.end()) + requiredStackTop;
+		/*size_t nInitialJunk = 0;
+		{
+			auto it = _inputStack.begin();
+			while (it != _inputStack.end() && std::holds_alternative<SSACFGJunkSlot>(*it))
+				++it;
+			nInitialJunk = static_cast<size_t>(std::distance(_inputStack.begin(), it));
+		}
+		auto const tail = pileOfJunk(nInitialJunk);*/
+		auto const tail = prepareStackTail(_inputStack.stackData(), top, {});
+		// auto const tail = pileOfJunk(_inputStack.numJunkSlots());
+		if constexpr(debugOutput)
+		{
+			std::string operationName = std::visit(util::GenericVisitor(
+				[](SSACFG::Call const& _call) { return _call.function.get().name.str(); },
+				[](SSACFG::BuiltinCall const& _call) { return _call.builtin.get().name; }
+			), operation.kind);
+			std::cout << "\t\t" << operationName << "(" << _inputStack.str(m_cfg) << " -> " << Stack(tail+top).str(m_cfg) << ")\n";
+		}
 		return DanielShuffler<Stack>::shuffle(
 			_inputStack,
 			{},
-			_inputStack.stackData() + std::vector(liveOutWithoutOutputs.begin(), liveOutWithoutOutputs.end()) + requiredStackTop
+			tail + top
 		);
 	}();
 	m_stackLayout[_blockId].operationIn[_operationIndex] = stack;
@@ -238,6 +297,7 @@ SSACFGStackLayoutGenerator::Stack SSACFGStackLayoutGenerator::visitOperation(
 	for (size_t i = 0; i < requiredStackTop.size(); ++i)
 		stack.pop();
 	for (auto const& val: operation.outputs)
+		// stack.push(val);
 		if (operationLiveOut.contains(val))
 			stack.push(val);
 		else
@@ -264,7 +324,6 @@ void SSACFGStackLayoutGenerator::populateBlockSuccessorStackIn(SSACFG::BlockId c
 		},
 		[](SSACFG::BasicBlock::FunctionReturn const&)
 		{
-
 		},
 		[](SSACFG::BasicBlock::Terminated const&) {}
 	}, m_cfg.block(_blockId).exit);
@@ -291,11 +350,20 @@ void SSACFGStackLayoutGenerator::populateStackInFromJumpExit(
 	}
 	else
 	{
+		// everything in stack out that is not in target live in can be deemed junk
+		Stack junkedStackOut(m_stackLayout[_source].stackOut.stackData() |
+			ranges::views::transform([&](Slot const& _slot) -> Slot {
+				if (std::holds_alternative<SSACFG::ValueId>(_slot) && !targetLiveIn.contains(std::get<SSACFG::ValueId>(_slot)))
+					return SSACFGJunkSlot{};
+				return _slot;
+			}) |
+			ranges::to<std::vector>);
 		m_stackLayout[_jump.target].stackIn = DanielShuffler<Stack>::shuffle(
-			m_stackLayout[_source].stackOut,
+			junkedStackOut,
 			{},
-			m_stackLayout[_source].stackOut.stackData() + std::vector(targetLiveInSlots.begin(), targetLiveInSlots.end())
+			pileOfJunk(junkedStackOut.numJunkSlots()) + std::vector(targetLiveInSlots.begin(), targetLiveInSlots.end())
 		);
+
 	}
 	markBlockHasDefinedStackIn(_jump.target);
 }
@@ -322,13 +390,20 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 		std::vector<Slot> const remainingZeroLiveInSlots(remainingZeroLiveIn.begin(), remainingZeroLiveIn.end());
 
 		// todo use shuffle algo
-		if ((requiresCleanStack(_condJump.nonZero) && requiresCleanStack(_condJump.zero)))
+		if (requiresCleanStack(_condJump.nonZero) && requiresCleanStack(_condJump.zero))
 			// [phi^-1(liveInZero) - liveInNonZero, liveInNonZero]
 			m_stackLayout[_condJump.nonZero].stackIn = Stack(remainingZeroLiveInSlots + nonZeroLiveInSlots);
 		else
-			m_stackLayout[_condJump.nonZero].stackIn = Stack(
-				m_stackLayout[_source].stackOut.stackData() + remainingZeroLiveInSlots + nonZeroLiveInSlots
+		{
+			auto const targetLiveIn = remainingZeroLiveIn + nonZeroLiveIn;
+			auto const top = remainingZeroLiveInSlots + nonZeroLiveInSlots;
+			auto const tail = prepareStackTail(
+				m_stackLayout[_source].stackOut.stackData(), // current stack
+				top + std::vector<Slot>{_condJump.condition}, // we will add the condition, no need if its already there
+				targetLiveIn // liveness
 			);
+			m_stackLayout[_condJump.nonZero].stackIn = Stack(tail + top);
+		}
 
 		markBlockHasDefinedStackIn(_condJump.nonZero);
 	}
@@ -344,8 +419,20 @@ void SSACFGStackLayoutGenerator::populateStackInFromConditionalJumpExit(
 			m_stackLayout[_condJump.zero].stackIn = Stack(zeroLiveInStackData);
 		else
 		{
+			Stack remainder(m_stackLayout[_source].stackOut.stackData() |
+				ranges::views::transform([&](Slot const& _slot) -> Slot {
+					if (std::holds_alternative<SSACFG::ValueId>(_slot) && !zeroLiveIn.contains(std::get<SSACFG::ValueId>(_slot)))
+						return SSACFGJunkSlot{};
+					return _slot;
+				}) |
+				ranges::to<std::vector>);
+			auto const tail = prepareStackTail(
+				m_stackLayout[_source].stackOut.stackData(), // current stack
+				zeroLiveInStackData,
+				zeroLiveIn
+			);
 			m_stackLayout[_condJump.zero].stackIn = Stack(
-				m_stackLayout[_source].stackOut.stackData() + zeroLiveInStackData
+				tail + zeroLiveInStackData
 			);
 		}
 		markBlockHasDefinedStackIn(_condJump.zero);

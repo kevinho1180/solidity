@@ -30,6 +30,7 @@
 #include <fmt/ranges.h>
 
 #include <map>
+#include <range/v3/algorithm/count_if.hpp>
 #include <variant>
 #include <vector>
 
@@ -88,7 +89,9 @@ struct SSACFGFunctionReturnLabel
 
 struct SSACFGJunkSlot
 {
-	auto operator<=>(const SSACFGJunkSlot&) const = default;
+	// 	auto operator<=>(const SSACFGJunkSlot&) const = default;
+	bool operator==(SSACFGJunkSlot const&) const { return true; }
+	bool operator<(SSACFGJunkSlot const&) const { return false; }
 };
 
 class SSACFGStackLayoutStack
@@ -217,6 +220,11 @@ public:
 				return "JUNK";
 			}
 		}, _slot);
+	}
+
+	size_t numJunkSlots() const
+	{
+		return static_cast<size_t>(ranges::count_if(m_data, [](Slot const& _slot) { return std::holds_alternative<SSACFGJunkSlot>(_slot); } ));
 	}
 private:
 	std::vector<Slot> m_data;

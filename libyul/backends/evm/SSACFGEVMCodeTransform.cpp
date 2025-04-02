@@ -118,7 +118,11 @@ public:
 			},
 			[&](SSACFGJunkSlot const&)
 			{
-				// todo hmm do i want this?
+				// Note: this will always be popped, so we can push anything.
+				if (m_assembly.evmVersion().hasPush0())
+					m_assembly.appendConstant(0);
+				else
+					m_assembly.appendInstruction(evmasm::Instruction::CODESIZE);
 				m_dataStack.push(SSACFGJunkSlot{});
 			}
 		}, _slot);
@@ -260,6 +264,7 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 
 	auto const& blockLayout = m_stackLayout[_block];
 	assertLayoutCompatibility(m_stack, blockLayout.stackIn);
+	m_stack = blockLayout.stackIn; // this can set some stuff to junk
 	// todo assert on all exits that the stack height is fine
 	yulAssert(static_cast<int>(m_stack.size()) == m_assembly.stackHeight());
 
@@ -275,6 +280,14 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 
 		yulAssert(static_cast<int>(m_stack.size()) == m_assembly.stackHeight());
 		// Create required layout for entering the operation.
+		if constexpr (debugOutput)
+		{
+			std::string operationName = std::visit(util::GenericVisitor(
+				[](SSACFG::Call const& _call) { return _call.function.get().name.str(); },
+				[](SSACFG::BuiltinCall const& _call) { return _call.builtin.get().name; }
+			), operation.kind);
+			std::cout << "\t\t" << operationName << ": " << m_stack.str(m_cfg) << " -> " << operationStackIn.str(m_cfg) << std::endl;
+		}
 		DanielShuffler<StackWithAssemblyOps>::
 			shuffle(StackWithAssemblyOps(m_cfg, m_assembly, m_stack, m_returnLabels), {}, operationStackIn.stackData());
 
@@ -337,7 +350,6 @@ void SSACFGEVMCodeTransform::operator()(SSACFG::BlockId const _block)
 					std::cout << "\t\tJUMPI Creating stack for nonZero layout " << m_stack.str(m_cfg) << " -> " << Stack{stackIn}.str(m_cfg) << std::endl;
 				shuffleStack(stackIn, SSACFG::Edge{_block, _conditionalJump.nonZero});
 			}
-			// std::cout << "Stack after putting cond on top: "<< stackToStringLoc(m_cfg, m_stack.stackData()) << std::endl;
 
 			// Emit the conditional jump to the non-zero label and update the stored stack.
 			{
@@ -440,6 +452,7 @@ void SSACFGEVMCodeTransform::performOperation(SSACFG::Operation const& _operatio
 	if constexpr (debugOutput)
 		std::cout << " -> " << m_stack.str(m_cfg) << std::endl;
 }
+
 void SSACFGEVMCodeTransform::assertLayoutCompatibility(Stack const& _current, Stack const& _desired) const
 {
 	yulAssert(
@@ -474,6 +487,7 @@ void SSACFGEVMCodeTransform::shuffleStack(std::vector<Slot> _target, std::option
 		StackWithAssemblyOps(m_cfg, m_assembly, m_stack, m_returnLabels),
 		{}, transformedTarget
 	);
-	yulAssert(transformedTarget == m_stack.stackData());
+	assertLayoutCompatibility(m_stack, Stack(transformedTarget));
+	//yulAssert(transformedTarget == m_stack.stackData());
 	m_stack = Stack(_target);
 }

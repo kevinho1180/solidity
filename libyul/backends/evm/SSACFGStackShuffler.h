@@ -143,20 +143,23 @@ struct DanielShuffler
 				std::vector<StackSlot> const& _targetStack
 			): currentStack(_currentStack), targetStack(_targetStack)
 			{
-				auto const histogram = [](auto const& _stack)
-				{
-					std::map<StackSlot, size_t> counts;
-					for (auto const& targetSlot: _stack)
-						++counts[targetSlot];
-					return counts;
-				};
-				targetCounts = histogram(targetStack);
-				sourceCounts = histogram(currentStack);
+				for (auto const x: currentStack)
+					++sourceCounts[x];
+				for (auto const [i, x]: ranges::views::enumerate(targetStack))
+					if (i < currentStack.size() && std::holds_alternative<SSACFGJunkSlot>(targetStack[i]))
+						++targetCounts[currentStack[i]];
+					else
+						++targetCounts[x];
 			}
 
 			bool isCompatible(size_t _source, size_t _target) const
 			{
-				return _source < currentStack.size() && _target < targetStack.size() && currentStack[_source] == targetStack[_target];
+				return _source < currentStack.size() &&
+					_target < targetStack.size() &&
+					(
+						std::holds_alternative<SSACFGJunkSlot>(targetStack[_target]) ||
+						currentStack[_source] == targetStack[_target]
+					);
 			}
 
 			bool sourceIsSame(size_t _sourceOffset1, size_t _sourceOffset2) const
@@ -176,7 +179,10 @@ struct DanielShuffler
 				return static_cast<int>(targetCounts.at(slot)) - static_cast<int>(util::valueOrDefault(sourceCounts, slot, static_cast<size_t>(0)));
 			}
 
-			bool targetIsArbitrary(size_t) const { return false; }
+			bool targetIsArbitrary(size_t _targetOffset) const
+			{
+				return _targetOffset < targetStack.size() && std::holds_alternative<SSACFGJunkSlot>(targetStack.at(_targetOffset));
+			}
 
 			size_t sourceSize() const { return currentStack.size(); }
 			size_t targetSize() const { return targetStack.size(); }

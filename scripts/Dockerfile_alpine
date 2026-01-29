@@ -1,4 +1,4 @@
-FROM alpine
+FROM alpine:3.23.3
 MAINTAINER chriseth <chris@ethereum.org>
 
 COPY upload/solc-static-linux /usr/local/bin/solc
